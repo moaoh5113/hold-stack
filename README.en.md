@@ -16,7 +16,7 @@ The app speaks English and Korean and follows your system language by default.
 |---|---|---|
 | [Isn't the clipboard enough?](#isnt-the-clipboard-enough) | [Getting started](#getting-started) | [Keys](#keys) |
 | [An example](#an-example) | [Holding a question](#holding-a-question) | [Settings](#settings) |
-|  | [Taking one out](#taking-one-out) |  |
+|  | [Taking one out](#taking-one-out) | [License](#license) |
 |  | [Editing](#editing) |  |
 |  | [Trash and undo](#trash-and-undo) |  |
 
@@ -114,3 +114,7 @@ Press `⌘,` in the list window, or choose Settings… from the menu bar icon. V
 | Global shortcuts | Click a button and press a new combination to change it. Turn one off with the switch next to it to free that combination for other apps |
 
 A shortcut must include `⌃`, `⌥`, or `⌘`, and editing shortcuts every app relies on, such as `⌘C` and `⌘V`, can't be chosen.
+
+## License
+
+MIT. You are free to use, modify, and distribute it as long as the copyright notice is kept. See [LICENSE](LICENSE) for the full text.
