@@ -150,8 +150,20 @@ struct SettingsView: View {
                     }
                 }
             }
-            Section {
-                Text(L("목록 창에서 ⌘/ 를 누르면 단축키를 볼 수 있습니다")).foregroundStyle(.secondary)
+            Section(L("목록 창 안의 키")) {
+                ForEach(ShortcutGuide.listWindow, id: \.0) { title, keys in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 3) {
+                            ForEach(keys, id: \.0) { key, meaning in
+                                GridRow {
+                                    Text(key).monospaced().frame(width: 48, alignment: .leading)
+                                    Text(meaning).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
         .formStyle(.grouped)

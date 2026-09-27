@@ -294,16 +294,7 @@ private struct KeysCard: View {
     let globalKeys: [(String, String)]
 
     private var groups: [(String, [(String, String)])] {
-        [
-            (L("어디서든"), globalKeys),
-            (L("목록"), [
-                ("↑ ↓", L("이동")), ("→ ←", L("크게 보기와 목록")), ("⏎", L("붙여넣기")),
-                ("⌘E", L("질문 고치기")), ("⌫", L("휴지통으로")), ("⇥", L("스택과 휴지통 전환")),
-                ("⌘Z", L("되돌리기")), ("⌘,", L("설정")), ("esc", L("닫기")),
-            ]),
-            (L("휴지통"), [("⏎", L("스택으로 되돌리기")), ("⌫", L("지우기"))]),
-            (L("고치는 중"), [("⏎", L("저장")), ("⇧⏎", L("줄바꿈")), ("esc", L("취소"))]),
-        ].filter { !$0.1.isEmpty }
+        ([(L("어디서든"), globalKeys)] + ShortcutGuide.listWindow).filter { !$0.1.isEmpty }
     }
 
     var body: some View {
@@ -336,5 +327,20 @@ private struct KeysCard: View {
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.secondary.opacity(0.3)))
             .padding(24)
         }
+    }
+}
+
+/// 목록 창 안의 키. ⌘/ 카드와 설정 창이 같은 목록을 쓴다.
+enum ShortcutGuide {
+    static var listWindow: [(String, [(String, String)])] {
+        [
+            (L("목록"), [
+                ("↑ ↓", L("이동")), ("→ ←", L("크게 보기와 목록")), ("⏎", L("붙여넣기")),
+                ("⌘E", L("질문 고치기")), ("⌫", L("휴지통으로")), ("⇥", L("스택과 휴지통 전환")),
+                ("⌘Z", L("되돌리기")), ("⌘/", L("단축키 보기")), ("⌘,", L("설정")), ("esc", L("닫기")),
+            ]),
+            (L("휴지통"), [("⏎", L("스택으로 되돌리기")), ("⌫", L("지우기"))]),
+            (L("고치는 중"), [("⏎", L("저장")), ("⇧⏎", L("줄바꿈")), ("esc", L("취소"))]),
+        ]
     }
 }

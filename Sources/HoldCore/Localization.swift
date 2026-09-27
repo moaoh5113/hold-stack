@@ -141,6 +141,7 @@ extension L10n {
         "저장": "Save",
         "줄바꿈": "New line",
         "esc 또는 ⌘/ 로 닫기": "Press esc or ⌘/ to close",
-        "목록 창에서 ⌘/ 를 누르면 단축키를 볼 수 있습니다": "Press ⌘/ in the list window to see all shortcuts",
+        "목록 창 안의 키": "Keys in the list window",
+        "단축키 보기": "Show shortcuts",
     ]
 }
