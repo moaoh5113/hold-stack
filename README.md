@@ -1,8 +1,17 @@
-<p align="center"><img src="docs/icon.png" width="96" alt="HoldStack 아이콘"></p>
+<h1 align="center">
+  <img src="docs/icon.png" width="64" alt="HoldStack 아이콘" valign="middle"> HoldStack
+</h1>
 
-# HoldStack
+<p align="center">
+  <a href="https://github.com/moaoh5113/hold-stack/releases/latest"><img src="https://img.shields.io/github/v/release/moaoh5113/hold-stack?style=flat&color=08C&label=release" alt="Latest release"></a>
+  <a href="https://github.com/moaoh5113/hold-stack/releases"><img src="https://img.shields.io/github/downloads/moaoh5113/hold-stack/total?style=flat&color=08C" alt="Downloads"></a>
+  <img src="https://img.shields.io/badge/license-MIT-08C?style=flat" alt="License: MIT">
+  <img src="https://img.shields.io/badge/macOS%2014%2B-Intel%20%7C%20Apple%20Silicon-4493F8?style=flat" alt="macOS 14 or later, Intel and Apple Silicon">
+</p>
 
-<p align="center">한국어 | <a href="i18n/README.en.md">English</a></p>
+<p align="center"><sub>한국어 | <a href="i18n/README.en.md">English</a></sub></p>
+
+<h3 align="center"><a href="https://github.com/moaoh5113/hold-stack/releases/latest"><ins>HoldStack 다운로드</ins></a></h3>
 
 AI 와 대화하거나 문서를 읽다 보면 묻고 싶은 것과 고치고 싶은 것이 한꺼번에 여러 개 생긴다. 한 번에 다루면 어지럽고, 하나씩 다루면 나머지를 잊는다. HoldStack 은 그것들을 걸린 문장과 함께 잠시 쌓아 두었다가 하나씩 꺼내 쓰게 해 주는 macOS 메뉴 막대 앱이다.
 

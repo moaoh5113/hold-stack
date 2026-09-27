@@ -1,8 +1,17 @@
-<p align="center"><img src="../docs/icon.png" width="96" alt="HoldStack icon"></p>
+<h1 align="center">
+  <img src="../docs/icon.png" width="64" alt="HoldStack icon" valign="middle"> HoldStack
+</h1>
 
-# HoldStack
+<p align="center">
+  <a href="https://github.com/moaoh5113/hold-stack/releases/latest"><img src="https://img.shields.io/github/v/release/moaoh5113/hold-stack?style=flat&color=08C&label=release" alt="Latest release"></a>
+  <a href="https://github.com/moaoh5113/hold-stack/releases"><img src="https://img.shields.io/github/downloads/moaoh5113/hold-stack/total?style=flat&color=08C" alt="Downloads"></a>
+  <img src="https://img.shields.io/badge/license-MIT-08C?style=flat" alt="License: MIT">
+  <img src="https://img.shields.io/badge/macOS%2014%2B-Intel%20%7C%20Apple%20Silicon-4493F8?style=flat" alt="macOS 14 or later, Intel and Apple Silicon">
+</p>
 
-<p align="center"><a href="../README.md">한국어</a> | English</p>
+<p align="center"><sub><a href="../README.md">한국어</a> | English</sub></p>
+
+<h3 align="center"><a href="https://github.com/moaoh5113/hold-stack/releases/latest"><ins>Download HoldStack</ins></a></h3>
 
 When you talk with an AI or read through a document, questions and fixes pile up all at once. Handle them together and things get messy; handle them one at a time and you forget the rest. HoldStack is a macOS menu bar app that holds them for a moment, along with the sentence that raised them, and lets you take them out one by one.
 
