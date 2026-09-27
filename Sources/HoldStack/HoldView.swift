@@ -146,7 +146,7 @@ struct HoldView: View {
             .onTapGesture(perform: action)
     }
 
-    private let placeholder = L("새 의문을 적고 Enter, 비워두면 목록을 고릅니다")
+    private var placeholder: String { L("새 의문을 적고 Enter, 비워두면 목록을 고릅니다") } // 언어를 바꾸면 다시 읽는다
 
     private var footer: some View {
         VStack(spacing: 4) {
@@ -156,7 +156,12 @@ struct HoldView: View {
                 Text(L("손쉬운 사용 권한이 없어 불러온 내용은 클립보드에만 들어갑니다. ⌘V 로 붙여넣으세요"))
                     .foregroundStyle(.orange)
             }
-            Text(model.editingID != nil ? L("⏎ 저장   ⇧⏎ 줄바꿈   esc 취소") : L("⌘/ 단축키"))
+            Text(model.editingID != nil ? L("⏎ 저장   ⇧⏎ 줄바꿈   esc 취소")
+                 : detailItem != nil
+                 ? (model.showingTrash ? L("↑↓ 앞뒤 항목   ← 목록으로   ⏎ 스택으로 되돌리기   ⌫ 지우기")
+                                       : L("↑↓ 앞뒤 항목   ← 목록으로   ⏎ 불러오기   ⌘E 고치기   ⌫ 휴지통으로"))
+                 : model.showingTrash ? L("↑↓ 이동   → 펼치기   ⏎ 스택으로 되돌리기   ⌫ 지우기   ⌘Z 되돌리기")
+                 : L("↑↓ 이동   → 펼치기   ⏎ 불러오기   ⌘E 고치기   ⌫ 휴지통으로   ⌘Z 되돌리기"))
                 .foregroundStyle(.secondary)
         }
         .font(.caption)

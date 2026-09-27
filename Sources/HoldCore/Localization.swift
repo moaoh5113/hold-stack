@@ -45,7 +45,7 @@ public func L(_ ko: String, _ args: CVarArg...) -> String {
 extension L10n {
     static let english: [String: String] = [
         // 목록 창
-        "새 의문을 적고 Enter, 비워두면 목록을 고릅니다": "Type a new question and press Enter, or leave empty to pick from the list",
+        "새 의문을 적고 Enter, 비워두면 목록을 고릅니다": "New question, or ⏎ to pick one",
         "스택 %d": "Stack %d",
         "휴지통 %d": "Trash %d",
         "휴지통": "Trash",
@@ -124,7 +124,10 @@ extension L10n {
         "이동": "Move",
         "스택과 휴지통 전환": "Switch between stack and Trash",
         "닫기": "Close",
-        "⌘/ 단축키": "⌘/ Shortcuts",
+        "↑↓ 이동   → 펼치기   ⏎ 불러오기   ⌘E 고치기   ⌫ 휴지통으로   ⌘Z 되돌리기": "↑↓ Move   → Expand   ⏎ Paste   ⌘E Edit   ⌫ Trash   ⌘Z Undo",
+        "↑↓ 이동   → 펼치기   ⏎ 스택으로 되돌리기   ⌫ 지우기   ⌘Z 되돌리기": "↑↓ Move   → Expand   ⏎ Restore   ⌫ Delete   ⌘Z Undo",
+        "↑↓ 앞뒤 항목   ← 목록으로   ⏎ 불러오기   ⌘E 고치기   ⌫ 휴지통으로": "↑↓ Prev/Next   ← List   ⏎ Paste   ⌘E Edit   ⌫ Trash",
+        "↑↓ 앞뒤 항목   ← 목록으로   ⏎ 스택으로 되돌리기   ⌫ 지우기": "↑↓ Prev/Next   ← List   ⏎ Restore   ⌫ Delete",
         "단축키": "Shortcuts",
         "어디서든": "Anywhere",
         "목록": "List",
