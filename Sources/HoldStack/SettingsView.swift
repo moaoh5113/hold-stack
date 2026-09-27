@@ -3,20 +3,48 @@ import Carbon
 import HoldCore
 import SwiftUI
 
-/// 단축키 녹화 상태. 키 감시 클로저가 붙잡을 수 있게 클래스로 둔다.
+/// 설정 창의 키 처리. 녹화 중이면 누른 조합을 단축키로 받고, 아니면 esc 로 창을 닫는다.
+/// 감시를 하나로 두어야 esc 를 누가 먼저 받는지 헷갈리지 않는다.
 final class ShortcutRecorder: ObservableObject {
     @Published private(set) var recording: HotKeyAction?
     @Published var message: String?
     private var monitor: Any?
     private var resignObserver: Any?
-    weak var window: NSWindow?
+    private weak var window: NSWindow?
     private let apply: (Shortcut, HotKeyAction) -> String?
+    private let applyEnabled: (Bool, HotKeyAction) -> String?
     private let setRecording: (Bool) -> Void
 
-    /// apply 는 실패하면 사용자에게 보여줄 문구를 돌려준다.
-    init(apply: @escaping (Shortcut, HotKeyAction) -> String?, setRecording: @escaping (Bool) -> Void) {
+    /// apply, applyEnabled 는 실패하면 사용자에게 보여줄 문구를 돌려준다.
+    init(apply: @escaping (Shortcut, HotKeyAction) -> String?,
+         applyEnabled: @escaping (Bool, HotKeyAction) -> String?,
+         setRecording: @escaping (Bool) -> Void) {
         self.apply = apply
+        self.applyEnabled = applyEnabled
         self.setRecording = setRecording
+    }
+
+    /// 녹화 중이면 먼저 멈춘다. 녹화는 전역 단축키를 풀어 둔 상태라 섞이면 안 된다.
+    func setEnabled(_ on: Bool, for action: HotKeyAction) {
+        stop()
+        message = applyEnabled(on, action)
+    }
+
+    func attach(to window: NSWindow, onEscape: @escaping () -> Void) {
+        self.window = window
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, event.window === self.window else { return event }
+            let isEscape = Int(event.keyCode) == kVK_Escape
+            if let action = self.recording {
+                self.stop()
+                if !isEscape { self.message = self.apply(Shortcut(event: event), action) }
+                return nil
+            }
+            guard isEscape else { return event }
+            onEscape()
+            return nil
+        }
     }
 
     func start(_ action: HotKeyAction) {
@@ -27,21 +55,11 @@ final class ShortcutRecorder: ObservableObject {
         // 다른 앱으로 넘어가면 녹화를 끝내야 전역 단축키가 돌아온다
         resignObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in self?.stop() }
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, event.window === self.window else { return event }
-            self.stop()
-            if Int(event.keyCode) != kVK_Escape {
-                self.message = self.apply(Shortcut(event: event), action)
-            }
-            return nil
-        }
     }
 
     func stop() {
         guard recording != nil else { return }
-        if let monitor { NSEvent.removeMonitor(monitor) }
         if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }
-        monitor = nil
         resignObserver = nil
         recording = nil
         setRecording(false)
@@ -50,55 +68,106 @@ final class ShortcutRecorder: ObservableObject {
 
 struct SettingsView: View {
     @ObservedObject var settings: ShortcutSettings
-    @ObservedObject var appearance: PanelAppearance
+    @ObservedObject var prefs: Preferences
+    @ObservedObject var loginItem: LoginItem
     @ObservedObject var recorder: ShortcutRecorder
 
     var body: some View {
         Form {
-            Section("전역 단축키") {
-                ForEach(HotKeyAction.allCases) { action in
-                    LabeledContent(action.title) {
-                        Button(recorder.recording == action ? "키 조합을 누르세요…" : settings[action].display) {
-                            recorder.start(action)
-                        }
-                        .frame(minWidth: 140)
-                    }
+            Section("일반") {
+                Toggle("로그인할 때 자동으로 실행", isOn: Binding(get: { loginItem.enabled }, set: { loginItem.set($0) }))
+                if let message = loginItem.message {
+                    Text(message).foregroundStyle(.orange).font(.callout)
                 }
-                if let message = recorder.message {
-                    Text(message).foregroundStyle(.red).font(.callout)
-                }
+                Toggle("메뉴 막대에 보관 개수 표시", isOn: $prefs.showCountInMenuBar)
             }
             Section("목록 창") {
                 LabeledContent("투명도") {
                     HStack {
-                        Slider(value: $appearance.opacity, in: PanelAppearance.opacityRange)
-                        Text("\(Int((appearance.opacity * 100).rounded()))%")
+                        Slider(value: $prefs.opacity, in: Preferences.opacityRange)
+                        Text("\(Int((prefs.opacity * 100).rounded()))%")
                             .monospacedDigit()
                             .frame(width: 40, alignment: .trailing)
                     }
                     .frame(width: 220)
                 }
+                Toggle("불러온 뒤 창 닫기", isOn: $prefs.closeAfterLoad)
+                Toggle("다른 앱을 누르면 창 닫기", isOn: $prefs.hideOnFocusLoss)
+                Toggle("데스크탑을 옮기면 창 닫기", isOn: $prefs.hideOnSpaceChange)
+                Picker("→ 로 펼칠 때", selection: $prefs.expandStyle) {
+                    ForEach(ExpandStyle.allCases) { Text($0.title).tag($0) }
+                }
                 Text("창을 옮기거나 크기를 바꾸면 다음에도 그 자리, 그 크기로 열립니다")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            Section("목록 창 안의 키 (고정)") {
-                Text("↑↓ 이동   ⏎ 불러오기   ⌫ 지우기   ⌘Z 되돌리기   esc 닫기")
-                    .foregroundStyle(.secondary)
+            Section("글자 크기") {
+                fontRow("의문을 가진 문장", value: $prefs.quoteFontSize)
+                fontRow("나의 질문", value: $prefs.questionFontSize)
+                VStack(alignment: .leading, spacing: 4) {
+                    QuoteLine(text: "빌드할 때마다 서명이 바뀌어 권한이 풀린다.", size: prefs.quoteFontSize, lineLimit: 1)
+                    Text("왜 그래야 하는 걸까").font(.system(size: prefs.questionFontSize))
+                }
+                .padding(.vertical, 4)
             }
-            HStack {
-                Spacer()
-                Button("기본값으로") {
-                    recorder.stop()
-                    settings.resetToDefaults()
-                    recorder.message = nil
+            Section("전역 단축키") {
+                ForEach(HotKeyAction.allCases) { action in
+                    LabeledContent(action.title) {
+                        HStack(spacing: 10) {
+                            Button(recorder.recording == action ? "키 조합을 누르세요…" : settings[action].display) {
+                                recorder.start(action)
+                            }
+                            .frame(minWidth: 140)
+                            .disabled(!settings.isEnabled(action))
+                            Toggle("", isOn: Binding(get: { settings.isEnabled(action) },
+                                                     set: { recorder.setEnabled($0, for: action) }))
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .controlSize(.small)
+                        }
+                    }
+                }
+                if let message = recorder.message {
+                    Text(message).foregroundStyle(.red).font(.callout)
+                }
+                HStack {
+                    Spacer()
+                    Button("단축키 기본값으로") {
+                        recorder.stop()
+                        settings.resetToDefaults()
+                        recorder.message = nil
+                    }
+                }
+            }
+            Section("목록 창 안의 키 (고정)") {
+                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 4) {
+                    ForEach(Self.panelKeys, id: \.0) { key, meaning in
+                        GridRow {
+                            Text(key).monospaced()
+                            Text(meaning).foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
         }
         .formStyle(.grouped)
-        .frame(width: 440)
+        .frame(width: 480, height: 760) // Form 은 스스로 높이를 갖지 않는다
         .onDisappear { recorder.stop() }
     }
+
+    private func fontRow(_ title: String, value: Binding<Double>) -> some View {
+        LabeledContent(title) {
+            Stepper(value: value, in: Preferences.fontSizeRange, step: 1) {
+                Text("\(Int(value.wrappedValue))pt").monospacedDigit()
+            }
+        }
+    }
+
+    private static let panelKeys = [
+        ("↑ ↓", "이동"), ("→ ←", "선택한 항목 펼치기, 접기 (방식은 위에서 고른다)"), ("⏎", "불러오기 (휴지통에서는 스택으로 되돌리기)"),
+        ("⌫", "휴지통으로 (휴지통에서는 지우기)"), ("⇥", "스택과 휴지통 전환"), ("⌘Z", "마지막 동작 되돌리기, 최대 10단계"),
+        ("⌘,", "설정 열기"), ("esc", "닫기"),
+    ]
 }
 
 extension Shortcut {

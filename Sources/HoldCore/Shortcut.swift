@@ -78,8 +78,11 @@ public enum ShortcutError: Error, Equatable {
 
 public final class ShortcutSettings: ObservableObject {
     @Published public private(set) var shortcuts: [HotKeyAction: Shortcut] = [:]
+    /// 끈 단축키는 등록하지 않는다. 조합은 남겨 두어 다시 켤 때 겹치지 않게 한다.
+    @Published public private(set) var disabled: Set<HotKeyAction> = []
     private let defaults: UserDefaults
     private static let storageKey = "shortcuts"
+    private static let disabledKey = "disabledShortcuts"
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -88,6 +91,14 @@ public final class ShortcutSettings: ObservableObject {
         for action in HotKeyAction.allCases {
             shortcuts[action] = saved[action.rawValue] ?? action.defaultShortcut
         }
+        disabled = Set((defaults.stringArray(forKey: Self.disabledKey) ?? []).compactMap(HotKeyAction.init))
+    }
+
+    public func isEnabled(_ action: HotKeyAction) -> Bool { !disabled.contains(action) }
+
+    public func setEnabled(_ on: Bool, for action: HotKeyAction) {
+        if on { disabled.remove(action) } else { disabled.insert(action) }
+        defaults.set(disabled.map(\.rawValue).sorted(), forKey: Self.disabledKey)
     }
 
     public subscript(action: HotKeyAction) -> Shortcut {

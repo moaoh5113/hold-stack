@@ -83,11 +83,11 @@ do {
     let suite = "holdstack-check-\(UUID().uuidString)"
     let d = UserDefaults(suiteName: suite)!
     defer { d.removePersistentDomain(forName: suite) }
-    let a = PanelAppearance(defaults: d)
+    let a = Preferences(defaults: d)
     a.opacity = 0.1
     check(a.opacity == 0.3, "투명도 하한")
     a.opacity = 0.6
-    check(PanelAppearance(defaults: d).opacity == 0.6, "투명도 저장")
+    check(Preferences(defaults: d).opacity == 0.6, "투명도 저장")
 }
 
 do {
@@ -106,7 +106,7 @@ do {
     let d = UserDefaults(suiteName: suite)!
     defer { d.removePersistentDomain(forName: suite) }
     d.set(0.05, forKey: "panelOpacity")
-    check(PanelAppearance(defaults: d).opacity == 0.3, "저장된 값이 범위 밖이어도 맞춘다")
+    check(Preferences(defaults: d).opacity == 0.3, "저장된 값이 범위 밖이어도 맞춘다")
 }
 
 do {
@@ -120,14 +120,12 @@ do {
     s.deleteFromTrash(at: 0)
     check(s.trash.isEmpty, "휴지통에서 지우면 휴지통에서 빠진다")
 }
-
 do {
     let s = HoldStore(fileURL: nil)
     (1...12).forEach { s.push("\($0)") }
     (1...12).forEach { _ in s.pop() }
     check(s.trash.count == HoldStore.trashLimit && s.trash.first?.text == "1" && s.trash.last?.text == "10", "휴지통은 최근 10개만")
 }
-
 do {
     let s = HoldStore(fileURL: nil)
     s.push("a"); s.push("b")
@@ -136,7 +134,6 @@ do {
     s.clear()
     check(s.items.isEmpty && s.trash.map(\.text) == ["b", "a"], "전체 비우기도 휴지통으로")
 }
-
 do {
     let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: dir) }
@@ -147,6 +144,20 @@ do {
 }
 
 do {
+    let suite = "holdstack-check-\(UUID().uuidString)"
+    let d = UserDefaults(suiteName: suite)!
+    defer { d.removePersistentDomain(forName: suite) }
+    let p = Preferences(defaults: d)
+    check(p.closeAfterLoad && p.showCountInMenuBar && p.hideOnFocusLoss && p.hideOnSpaceChange, "부가 기능 기본값은 켜짐")
+    p.hideOnSpaceChange = false
+    check(p.shouldHide(for: .otherApp) && !p.shouldHide(for: .spaceChange), "닫는 이유마다 설정을 따로 본다")
+    p.closeAfterLoad = false
+    p.showCountInMenuBar = false
+    let again = Preferences(defaults: d)
+    check(!again.closeAfterLoad && !again.showCountInMenuBar, "부가 기능 설정 저장")
+}
+
+do {
     let s = HoldStore(fileURL: nil)
     (1...15).forEach { s.push("\($0)") }
     s.clear()
@@ -154,7 +165,6 @@ do {
     s.push("x"); s.pop()
     check(s.trash.count == HoldStore.trashLimit && s.trash.first?.text == "x", "다음 이동부터 다시 10개로")
 }
-
 do {
     let s = HoldStore(fileURL: nil)
     s.push("a")
@@ -176,14 +186,12 @@ do {
     check(s.undo() && s.items.map(\.text) == ["d", "c", "b", "a"], "undo 3: 처음 상태로")
     check(!s.undo() && s.trash.isEmpty && s.items.allSatisfy { $0.removedAt == nil }, "기록 끝, 휴지통 표시도 지워진다")
 }
-
 do {
     let s = HoldStore(fileURL: nil)
     ["a", "b", "c"].forEach { s.push($0) }
     s.clear()
     check(s.undo() && s.items.map(\.text) == ["c", "b", "a"], "전체 비우기는 한 번의 undo 로 전부 복구")
 }
-
 do {
     let s = HoldStore(fileURL: nil)
     ["a", "b"].forEach { s.push($0) }   // b a
@@ -194,7 +202,6 @@ do {
     check(s.undo() && s.items.map(\.text) == ["a"], "그다음 undo 는 a 꺼내기를 되돌린다")
     check(s.undo() && s.items.map(\.text) == ["b", "a"] && s.trash.isEmpty && !s.undo(), "마지막으로 b 꺼내기까지, 한 동작씩 거꾸로")
 }
-
 do {
     let s = HoldStore(fileURL: nil)
     (1...12).forEach { s.push("\($0)") }
@@ -229,6 +236,17 @@ do {
 }
 
 do {
+    let suite = "holdstack-check-\(UUID().uuidString)"
+    let d = UserDefaults(suiteName: suite)!
+    defer { d.removePersistentDomain(forName: suite) }
+    check(Preferences(defaults: d).expandStyle == .inline, "펼치기 기본값은 그 자리에서")
+    Preferences(defaults: d).expandStyle = .detail
+    check(Preferences(defaults: d).expandStyle == .detail, "펼치기 방식 저장")
+    d.set("weird", forKey: "expandStyle")
+    check(Preferences(defaults: d).expandStyle == .inline, "모르는 값이면 기본값")
+}
+
+do {
     let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: dir) }
     let url = dir.appendingPathComponent("stack.json")
@@ -245,6 +263,29 @@ do {
 }
 
 do {
+    let suite = "holdstack-check-\(UUID().uuidString)"
+    let d = UserDefaults(suiteName: suite)!
+    defer { d.removePersistentDomain(forName: suite) }
+    let s = ShortcutSettings(defaults: d)
+    check(HotKeyAction.allCases.allSatisfy(s.isEnabled), "단축키는 기본으로 모두 켜짐")
+    s.setEnabled(false, for: .pop)
+    check(!ShortcutSettings(defaults: d).isEnabled(.pop) && ShortcutSettings(defaults: d).isEnabled(.hold), "끈 단축키 저장")
+    check((try? s.set(HotKeyAction.pop.defaultShortcut, for: .hold)) == nil, "꺼진 단축키 조합도 겹치면 거부")
+}
+
+do {
+    let suite = "holdstack-check-\(UUID().uuidString)"
+    let d = UserDefaults(suiteName: suite)!
+    defer { d.removePersistentDomain(forName: suite) }
+    let p = Preferences(defaults: d)
+    check(p.questionFontSize == 13 && p.quoteFontSize == 12, "글자 크기 기본값은 지금 크기")
+    p.questionFontSize = 30
+    p.quoteFontSize = 16.4
+    let again = Preferences(defaults: d)
+    check(again.questionFontSize == 24 && again.quoteFontSize == 16, "글자 크기는 10~24 정수로 저장")
+}
+
+do {
     let s = HoldStore(fileURL: nil)
     (0..<5).forEach { s.push("t\($0)") }
     (0..<5).forEach { _ in s.pop() }                 // 휴지통 t0…t4 (최근이 앞)
@@ -253,7 +294,6 @@ do {
     s.clear()                                        // 8개가 들어오며 옛 휴지통 일부가 밀려난다
     check(s.undo() && s.items.count == 8 && s.trash.map(\.text) == before, "전체 비우기 undo 는 밀려난 휴지통도 되살린다")
 }
-
 do {
     let s = HoldStore(fileURL: nil)
     (0..<10).forEach { s.push("\($0)") }

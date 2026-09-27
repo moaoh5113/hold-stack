@@ -3,38 +3,45 @@ import SwiftUI
 
 final class PanelModel: ObservableObject {
     @Published var draft = ""
-    @Published var quote: String?
-    @Published var composing = false
+    @Published var showingTrash = false
     @Published var canPaste = true
-    @Published var selection = 0
+    @Published var selection = 0 { didSet { expanded = false } }
+    @Published var expanded = false
     @Published var focusTick = 0
     var onPick: (Int) -> Void = { _ in }
+    var onTab: (Bool) -> Void = { _ in }   // true = 휴지통
+    var onDelete: (Int) -> Void = { _ in }
 }
 
 struct HoldView: View {
     @ObservedObject var store: HoldStore
     @ObservedObject var model: PanelModel
+    @ObservedObject var prefs: Preferences
     @FocusState private var inputFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            if let quote = model.quote {
-                QuoteLine(text: quote, lineLimit: 4)
-                    .padding([.horizontal, .top], 14)
+            if model.showingTrash {
+                Text("휴지통 · 최근 \(HoldStore.trashLimit)개까지 보관")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(14)
+            } else {
+                TextField(placeholder, text: $model.draft)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 16))
+                    .padding(14)
+                    .focused($inputFocused)
             }
 
-            TextField(placeholder, text: $model.draft)
-                .textFieldStyle(.plain)
-                .font(.system(size: 16))
-                .padding(14)
-                .focused($inputFocused)
+            tabs
 
             Divider()
 
-            if model.composing {
-                Spacer(minLength: 0)
-            } else if store.items.isEmpty {
-                Text("보관된 의문이 없습니다")
+            if let item = detailItem {
+                detail(item)
+            } else if shownItems.isEmpty {
+                Text(model.showingTrash ? "휴지통이 비어 있습니다" : "보관된 의문이 없습니다")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -50,10 +57,64 @@ struct HoldView: View {
         .onChange(of: model.focusTick) { inputFocused = true }
     }
 
-    private var placeholder: String {
-        if model.quote != nil { return "이 문장에 대한 의문을 적고 Enter" }
-        return model.composing ? "떠오른 의문을 적고 Enter" : "새 의문을 적고 Enter, 비워두면 목록을 고릅니다"
+    private var shownItems: [HoldItem] { model.showingTrash ? store.trash : store.items }
+
+    private var detailItem: HoldItem? {
+        guard model.expanded, prefs.expandStyle == .detail, shownItems.indices.contains(model.selection) else { return nil }
+        return shownItems[model.selection]
     }
+
+    private func detail(_ item: HoldItem) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text("\(model.selection + 1) / \(shownItems.count)")
+                        .font(.system(.caption, design: .monospaced))
+                    Spacer()
+                    Text(Age.text(since: item.removedAt ?? item.createdAt)).font(.caption)
+                }
+                .foregroundStyle(.secondary)
+                if let quote = item.quote {
+                    QuoteLine(text: quote, size: prefs.quoteFontSize + 1, lineLimit: nil)
+                        .textSelection(.enabled)
+                }
+                if !item.text.isEmpty {
+                    Text(item.text)
+                        .font(.system(size: prefs.questionFontSize + 3))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var tabs: some View {
+        HStack(spacing: 16) {
+            tab("스택 \(store.items.count)", on: !model.showingTrash) { model.onTab(false) }
+            tab("휴지통 \(store.trash.count)", on: model.showingTrash) { model.onTab(true) }
+            Spacer()
+            Text("⇥ 전환").font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.bottom, 8)
+    }
+
+    private func tab(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Text(title)
+            .font(.callout.weight(on ? .semibold : .regular))
+            .foregroundStyle(on ? .primary : .secondary)
+            .padding(.bottom, 3)
+            .overlay(alignment: .bottom) {
+                if on { Rectangle().fill(Color.accentColor).frame(height: 2) }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: action)
+    }
+
+    private let placeholder = "새 의문을 적고 Enter, 비워두면 목록을 고릅니다"
 
     private var footer: some View {
         VStack(spacing: 4) {
@@ -61,9 +122,11 @@ struct HoldView: View {
                 Text("손쉬운 사용 권한이 없어 불러온 내용은 클립보드에만 들어갑니다. ⌘V 로 붙여넣으세요")
                     .foregroundStyle(.orange)
             }
-            Text(model.composing
-                 ? "⏎ 보관   esc 취소"
-                 : "↑↓ 이동   ⏎ 불러오기   ⌫ 지우기   ⌘Z 되돌리기   esc 닫기")
+            Text(detailItem != nil
+                 ? (model.showingTrash ? "↑↓ 앞뒤 항목   ← 목록으로   ⏎ 스택으로 되돌리기   ⌫ 지우기"
+                                       : "↑↓ 앞뒤 항목   ← 목록으로   ⏎ 불러오기   ⌫ 휴지통으로")
+                 : model.showingTrash ? "↑↓ 이동   → 펼치기   ⏎ 스택으로 되돌리기   ⌫ 지우기   ⌘Z 되돌리기   esc 닫기"
+                 : "↑↓ 이동   → 펼치기   ⏎ 불러오기   ⌫ 휴지통으로   ⌘Z 되돌리기   esc 닫기")
                 .foregroundStyle(.secondary)
         }
         .font(.caption)
@@ -75,52 +138,89 @@ struct HoldView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 2) {
-                    ForEach(Array(store.items.enumerated()), id: \.element.id) { index, item in
-                        row(item, index: index)
+                    ForEach(Array(shownItems.enumerated()), id: \.element.id) { index, item in
+                        Row(item: item, index: index, selected: index == model.selection,
+                            expanded: index == model.selection && model.expanded,
+                            questionSize: prefs.questionFontSize, quoteSize: prefs.quoteFontSize,
+                            deleteHelp: model.showingTrash ? "지우기" : "휴지통으로",
+                            onDelete: { model.onDelete(index) })
                             .id(item.id)
                             .contentShape(Rectangle())
                             .onTapGesture { model.onPick(index) }
                     }
                 }
-                .padding(6)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 6)
             }
             .onChange(of: model.selection) { _, new in
-                if store.items.indices.contains(new) { proxy.scrollTo(store.items[new].id) }
+                if shownItems.indices.contains(new) { proxy.scrollTo(shownItems[new].id) }
             }
         }
-    }
-
-    private func row(_ item: HoldItem, index: Int) -> some View {
-        let selected = index == model.selection
-        return HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text("\(index + 1)")
-                .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(selected ? .white.opacity(0.8) : .secondary)
-                .frame(width: 22, alignment: .trailing)
-            VStack(alignment: .leading, spacing: 3) {
-                if let quote = item.quote {
-                    QuoteLine(text: quote, lineLimit: 1, onAccent: selected)
-                }
-                if !item.text.isEmpty {
-                    Text(item.text).lineLimit(2)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            Text(item.createdAt, style: .relative)
-                .font(.caption2)
-                .foregroundStyle(selected ? .white.opacity(0.8) : .secondary)
-        }
-        .foregroundStyle(selected ? .white : .primary)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(selected ? Color.accentColor : .clear, in: RoundedRectangle(cornerRadius: 6))
     }
 }
 
+/// 목록 한 줄. 마우스를 올리면 오른쪽에 ✕ 가 나온다.
+private struct Row: View {
+    let item: HoldItem
+    let index: Int
+    let selected: Bool
+    let expanded: Bool
+    let questionSize: Double
+    let quoteSize: Double
+    let deleteHelp: String
+    let onDelete: () -> Void
+    @StateObject private var hover = HoverState()
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("\(index + 1)")
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(selected ? .white.opacity(0.8) : .secondary)
+            VStack(alignment: .leading, spacing: 3) {
+                if let quote = item.quote {
+                    QuoteLine(text: quote, size: quoteSize, lineLimit: expanded ? nil : 1, onAccent: selected)
+                }
+                if !item.text.isEmpty {
+                    Text(item.text)
+                        .font(.system(size: questionSize))
+                        .lineLimit(expanded ? nil : 2)
+                        .fixedSize(horizontal: false, vertical: expanded)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if hover.on {
+                Button(action: onDelete) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(selected ? .white.opacity(0.85) : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(deleteHelp)
+            } else {
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    Text(Age.text(since: item.removedAt ?? item.createdAt, now: context.date))
+                }
+                .font(.caption2)
+                .foregroundStyle(selected ? .white.opacity(0.8) : .secondary)
+            }
+        }
+        .foregroundStyle(selected ? .white : .primary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .background(selected ? Color.accentColor : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .onHover { hover.on = $0 }
+    }
+}
+
+/// @State 를 못 쓰는 환경이라 줄마다 작은 객체로 둔다.
+private final class HoverState: ObservableObject {
+    @Published var on = false
+}
+
 /// 의문을 가진 문장. 왼쪽 세로줄로 인용임을 보인다.
-private struct QuoteLine: View {
+struct QuoteLine: View {
     let text: String
-    let lineLimit: Int
+    let size: Double
+    let lineLimit: Int?
     var onAccent = false
 
     var body: some View {
@@ -129,7 +229,7 @@ private struct QuoteLine: View {
                 .fill(onAccent ? Color.white.opacity(0.6) : Color.secondary.opacity(0.5))
                 .frame(width: 2)
             Text(text)
-                .font(.callout)
+                .font(.system(size: size))
                 .italic()
                 .lineLimit(lineLimit)
                 .foregroundStyle(onAccent ? Color.white.opacity(0.85) : Color.secondary)

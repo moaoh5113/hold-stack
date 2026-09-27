@@ -8,6 +8,9 @@ enum Clipboard {
     private(set) static var isBusy = false
 
     /// 가짜 키 입력은 손쉬운 사용 권한과 이벤트 전송 권한 중 하나로 허용된다.
+    /// 붙여넣기까지 지연이 있을 때, 그 사이 다른 복사나 붙여넣기가 끼어들지 못하게 먼저 잡는다.
+    static func reserve() { isBusy = true }
+
     static var canSendKeys: Bool { AXIsProcessTrusted() || CGPreflightPostEventAccess() }
 
     static var permissionSummary: String {
@@ -51,7 +54,10 @@ enum Clipboard {
         pb.setString(text, forType: .string)
         let front = NSWorkspace.shared.frontmostApplication
         DiagLog.write("paste len=\(text.count) \(permissionSummary) target=\(target?.bundleIdentifier ?? "nil") front=\(front?.bundleIdentifier ?? "nil")")
-        guard canSendKeys else { return DiagLog.write("paste: no permission, clipboard only") }
+        guard canSendKeys else {
+            isBusy = false
+            return DiagLog.write("paste: no permission, clipboard only")
+        }
         isBusy = true
         if let target, front?.processIdentifier != target.processIdentifier {
             target.activate()
