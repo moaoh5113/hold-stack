@@ -25,8 +25,8 @@ The app speaks English and Korean and follows your system language by default.
 |---|---|---|
 | [Isn't the clipboard enough?](#isnt-the-clipboard-enough) | [Getting started](#getting-started) | [Keys](#keys) |
 | [An example](#an-example) | [Holding a question](#holding-a-question) | [Settings](#settings) |
-|  | [Taking one out](#taking-one-out) | [License](#license) |
-|  | [Editing](#editing) |  |
+|  | [Taking one out](#taking-one-out) | [Privacy](#privacy) |
+|  | [Editing](#editing) | [License](#license) |
 |  | [Trash and undo](#trash-and-undo) |  |
 
 ## Isn't the clipboard enough?
@@ -123,6 +123,10 @@ Press `⌘,` in the list window, or choose Settings… from the menu bar icon. V
 | Global shortcuts | Click a button and press a new combination to change it. Turn one off with the switch next to it to free that combination for other apps |
 
 A shortcut must include `⌃`, `⌥`, or `⌘`, and editing shortcuts every app relies on, such as `⌘C` and `⌘V`, can't be chosen.
+
+## Privacy
+
+HoldStack sends nothing over the internet. Your questions and settings are stored only on this Mac, in `~/Library/Application Support/HoldStack/`. It borrows the clipboard briefly to copy the selected sentence and to paste, then puts your original clipboard contents back. The diagnostic log (`~/Library/Logs/HoldStack.log`) records only character counts and the name of the app it pasted into, never the text itself.
 
 ## License
 
