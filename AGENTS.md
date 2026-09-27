@@ -11,6 +11,7 @@ macOS 메뉴 막대 앱. 질문을 스택에 보관하고 전역 단축키로 �
 | .app 번들 | `./scripts/make-app.sh` → `build/HoldStack.app`. 인증서가 있으면 그걸로 서명 |
 | 배포용 번들 | `./scripts/make-app.sh --release` (임시 서명만) |
 | 이 컴퓨터 전용 인증서 | `./scripts/make-cert.sh` (한 번만). 지우기 `security delete-identity -c "HoldStack Local Signing"` |
+| 번역 빠짐 확인 | `./scripts/check-l10n.sh` (코드의 `L("…")` 가운데 영어 표에 없는 것) |
 | 아이콘 다시 만들기 | `./scripts/make-icon.sh` → `Resources/AppIcon.icns`, `AppIcon.png` |
 | 실행 | `open build/HoldStack.app` |
 
@@ -72,6 +73,7 @@ macOS 메뉴 막대 앱. 질문을 스택에 보관하고 전역 단축키로 �
 | 막을 때는 스택에서 빼기 전에 막는다 | 빼고 나서 막으면 의문이 휴지통으로 간다 |
 | 고치기는 목록 창 안에서 그 자리에(`PanelModel.editingID`), 질문만. `HoldStore.update(id:text:)` 를 거친다. 고치는 중에는 방향키와 지우기가 입력칸 몫 | 문장은 원문 인용이라 바꾸면 원문과 어긋난다. 고친 것도 `.edited` 로 되돌린다 |
 | 휴지통 개수는 `Preferences.trashLimit` → `HoldStore.trashLimit` | undo 기록 상한도 같은 값. 줄여도 즉시 자르지 않는다 |
+| 화면 문구는 `L("한국어 원문")` 으로 쓰고 영어를 `Localization.swift` 표에 넣는다 | 설정에서 곧바로 언어를 바꾸려고 `.strings` 대신 코드 표를 쓴다. 값은 `L("…%d…", n)`. 추가한 뒤 `check-l10n.sh` |
 | 로그에 클립보드 내용을 적지 않는다 | 개인 정보. 글자 수만 |
 | 개인 정보를 넣지 않는다 | 배포용이다. 번들 ID 는 `app.holdstack.HoldStack`. 사람 이름, 계정, 절대 경로를 코드와 문서에 쓰지 않는다 |
 | 순수 로직은 `HoldCore` 에 둔다 | 자동 검증이 되는 곳은 거기뿐이다 |
