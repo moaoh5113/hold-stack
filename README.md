@@ -2,7 +2,7 @@
 
 # HoldStack
 
-<p align="center">한국어 | <a href="README.en.md">English</a></p>
+<p align="center">한국어 | <a href="i18n/README.en.md">English</a></p>
 
 AI 와 대화하거나 문서를 읽다 보면 묻고 싶은 것과 고치고 싶은 것이 한꺼번에 여러 개 생긴다. 한 번에 다루면 어지럽고, 하나씩 다루면 나머지를 잊는다. HoldStack 은 그것들을 걸린 문장과 함께 잠시 쌓아 두었다가 하나씩 꺼내 쓰게 해 주는 macOS 메뉴 막대 앱이다.
 
@@ -32,7 +32,7 @@ AI 가 캐시 동작을 설명하다가 "만료된 항목은 다음 요청에서
 
 ## 시작하기
 
-macOS 14 이상에서 동작하고 인텔과 Apple Silicon 맥 모두 쓸 수 있다. [Releases](../../releases/latest) 에서 `HoldStack-버전.zip` 을 받아 풀고, `HoldStack.app` 을 응용 프로그램 폴더에 넣어 연다. 개발자 인증서로 서명하고 Apple 공증(notarization)을 받은 앱이 아니어서 처음에는 macOS 가 막는다. 공증은 Apple 이 앱을 검사하고 문제없다고 확인해 주는 절차다. 한 번 열어 막힌 뒤 시스템 설정 → 개인정보 보호 및 보안에서 「그래도 열기」를 누르면 된다.
+macOS 14 이상에서 동작하고 인텔과 Apple Silicon 맥 모두 쓸 수 있다. [Releases](https://github.com/moaoh5113/hold-stack/releases/latest) 에서 `HoldStack-버전.zip` 을 받아 풀고, `HoldStack.app` 을 응용 프로그램 폴더에 넣어 연다. 개발자 인증서로 서명하고 Apple 공증(notarization)을 받은 앱이 아니어서 처음에는 macOS 가 막는다. 공증은 Apple 이 앱을 검사하고 문제없다고 확인해 주는 절차다. 한 번 열어 막힌 뒤 시스템 설정 → 개인정보 보호 및 보안에서 「그래도 열기」를 누르면 된다.
 
 처음 실행하면 손쉬운 사용(Accessibility) 권한을 묻는다. 다른 앱을 대신해 키를 눌러 주는 권한이다. HoldStack 은 이 권한으로 선택한 문장을 복사하고 꺼낸 의문을 붙여넣는다. 허용하지 않아도 단축키와 목록은 쓸 수 있지만, 꺼낸 의문이 클립보드에 들어가는 데서 멈추므로 `⌘V` 를 직접 눌러야 한다.
 

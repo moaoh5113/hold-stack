@@ -1,8 +1,8 @@
-<p align="center"><img src="docs/icon.png" width="96" alt="HoldStack icon"></p>
+<p align="center"><img src="../docs/icon.png" width="96" alt="HoldStack icon"></p>
 
 # HoldStack
 
-<p align="center"><a href="README.md">한국어</a> | English</p>
+<p align="center"><a href="../README.md">한국어</a> | English</p>
 
 When you talk with an AI or read through a document, questions and fixes pile up all at once. Handle them together and things get messy; handle them one at a time and you forget the rest. HoldStack is a macOS menu bar app that holds them for a moment, along with the sentence that raised them, and lets you take them out one by one.
 
@@ -10,7 +10,7 @@ It borrows the hold feature from Tetris, except it keeps a whole stack instead o
 
 The app speaks English and Korean and follows your system language by default.
 
-<p align="center"><img src="docs/en/list.png" width="560" alt="The list window. Each entry shows the held sentence above your question"></p>
+<p align="center"><img src="../docs/en/list.png" width="560" alt="The list window. Each entry shows the held sentence above your question"></p>
 
 | About | How to use | Reference |
 |---|---|---|
@@ -34,13 +34,13 @@ An AI explaining caching says "expired entries are refilled on the next request.
 
 ## Getting started
 
-HoldStack runs on macOS 14 or later, on both Intel and Apple Silicon Macs. Download `HoldStack-<version>.zip` from [Releases](../../releases/latest), unzip it, move `HoldStack.app` to your Applications folder, and open it. The app is not signed with a developer certificate or notarized by Apple, so macOS blocks it the first time. Notarization is Apple's check that an app is safe. After it is blocked once, go to System Settings → Privacy & Security and click "Open Anyway."
+HoldStack runs on macOS 14 or later, on both Intel and Apple Silicon Macs. Download `HoldStack-<version>.zip` from [Releases](https://github.com/moaoh5113/hold-stack/releases/latest), unzip it, move `HoldStack.app` to your Applications folder, and open it. The app is not signed with a developer certificate or notarized by Apple, so macOS blocks it the first time. Notarization is Apple's check that an app is safe. After it is blocked once, go to System Settings → Privacy & Security and click "Open Anyway."
 
 On first launch it asks for Accessibility permission, which lets an app press keys on your behalf. HoldStack uses it to copy the selected sentence and to paste the question you take out. Without it, the shortcuts and the list still work, but a question you take out only reaches the clipboard, so you press `⌘V` yourself.
 
 ## Holding a question
 
-<p align="center"><img src="docs/en/compose.png" width="460" alt="The compose window. The held sentence on top, a box for your question below"></p>
+<p align="center"><img src="../docs/en/compose.png" width="460" alt="The compose window. The held sentence on top, a box for your question below"></p>
 
 Select the sentence that caught your eye and press `⌃⇧H` to open the compose window. The held sentence sits on top, with a box for your question below. Type your question and press Enter, and the sentence and question are stacked as one entry and the window closes. Press `⇧⏎` for a new line.
 
@@ -62,7 +62,7 @@ Press `→` to read a long question in full. The list steps aside and that quest
 
 ## Editing
 
-<p align="center"><img src="docs/en/edit.png" width="560" alt="Editing a question in the full view. The question has turned into a bordered input box"></p>
+<p align="center"><img src="../docs/en/edit.png" width="560" alt="Editing a question in the full view. The question has turned into a bordered input box"></p>
 
 To polish a question, select it in the list and press `⌘E`. Right where you were looking, the question turns into a bordered input box marked "Editing question". Press Enter and the edited question appears in place; `esc` cancels just the edit. The held sentence is a quote from the original, so it can't be edited.
 
@@ -117,4 +117,4 @@ A shortcut must include `⌃`, `⌥`, or `⌘`, and editing shortcuts every app 
 
 ## License
 
-MIT. You are free to use, modify, and distribute it as long as the copyright notice is kept. See [LICENSE](LICENSE) for the full text.
+MIT. You are free to use, modify, and distribute it as long as the copyright notice is kept. See [LICENSE](../LICENSE) for the full text.
