@@ -10,6 +10,7 @@ macOS 메뉴 막대 앱. 질문을 스택에 보관하고 전역 단축키로 �
 | 앱 빌드 | `swift build --product HoldStack` |
 | .app 번들 | `./scripts/make-app.sh` → `build/HoldStack.app`. 인증서가 있으면 그걸로 서명 |
 | 배포용 번들 | `./scripts/make-app.sh --release` (임시 서명만) |
+| 배포 zip | `./scripts/make-release.sh` → `build/release/HoldStack-<버전>.zip` (앱과 LICENSE, 인텔 겸용). 올리기 `gh release upload v<버전> <zip> --clobber` |
 | 이 컴퓨터 전용 인증서 | `./scripts/make-cert.sh` (한 번만). 지우기 `security delete-identity -c "HoldStack Local Signing"` |
 | 번역 빠짐 확인 | `./scripts/check-l10n.sh` (코드의 `L("…")` 가운데 영어 표에 없는 것) |
 | 아이콘 다시 만들기 | `./scripts/make-icon.sh` → `Resources/AppIcon.icns`, `AppIcon.png` |
