@@ -8,7 +8,9 @@ macOS 메뉴 막대 앱. 질문을 스택에 보관하고 전역 단축키로 �
 |---|---|
 | 로직 검증 | `swift run HoldCoreCheck` (종료 코드 0 = 통과) |
 | 앱 빌드 | `swift build --product HoldStack` |
-| .app 번들 | `./scripts/make-app.sh` → `build/HoldStack.app` |
+| .app 번들 | `./scripts/make-app.sh` → `build/HoldStack.app`. 인증서가 있으면 그걸로 서명 |
+| 배포용 번들 | `./scripts/make-app.sh --release` (임시 서명만) |
+| 이 컴퓨터 전용 인증서 | `./scripts/make-cert.sh` (한 번만). 지우기 `security delete-identity -c "HoldStack Local Signing"` |
 | 아이콘 다시 만들기 | `./scripts/make-icon.sh` → `Resources/AppIcon.icns`, `AppIcon.png` |
 | 실행 | `open build/HoldStack.app` |
 
@@ -16,15 +18,22 @@ macOS 메뉴 막대 앱. 질문을 스택에 보관하고 전역 단축키로 �
 
 | 경로 | 역할 |
 |---|---|
-| `Sources/HoldCore/HoldStore.swift` | 스택. `items[0]` 이 맨 위. 항목은 질문 `text` + 문장 `quote`. `pasteText` 가 붙여넣기 형식. JSON 영속화, 1단계 undo |
-| `Sources/HoldCore/PanelAppearance.swift` | 패널 투명도(0.3~1.0), UserDefaults |
+| `Sources/HoldCore/HoldStore.swift` | 스택과 휴지통. `items[0]`, `trash[0]` 이 최근. 항목은 질문 `text` + 문장 `quote`. `pasteText` 가 붙여넣기 형식. `stack.json`, `trash.json`, undo 최대 10단계(`undo.json`) |
+| `Sources/HoldCore/Preferences.swift` | 투명도, 불러온 뒤 닫기, 개수 표시, 초점 잃으면 닫기(이유별), 펼치기 방식, 글자 크기(10~24pt). UserDefaults |
 | `Sources/HoldCore/Shortcut.swift` | 단축키 값, `HotKeyAction`, `ShortcutSettings`(UserDefaults, 검증) |
 | `Sources/HoldCoreCheck/main.swift` | 테스트 대용 실행 파일 |
 | `Sources/HoldStack/AppDelegate.swift` | 메뉴 막대, 단축키 등록·재등록, 설정 창 |
 | `Sources/HoldStack/HotKeyCenter.swift` | Carbon `RegisterEventHotKey` 래퍼 |
 | `Sources/HoldStack/Clipboard.swift` | 합성 ⌘C/⌘V, 클립보드 복원 |
-| `Sources/HoldStack/PanelController.swift` | 떠 있는 패널, 작성 모드(`composing`)와 목록 모드 키 처리, 위치와 크기 자동 저장 |
-| `Sources/HoldStack/HoldView.swift` | 패널 SwiftUI 뷰 |
+| `Sources/HoldStack/PanelController.swift` | 목록 창. 스택/휴지통 모드 키 처리, 붙여넣을 앱 추적, 위치와 크기 자동 저장 |
+| `Sources/HoldStack/ComposeController.swift` | ⌃⇧H 작성 창과 그 뷰. 목록 창과 별개 |
+| `Sources/HoldStack/LoginItem.swift` | 로그인 시 자동 실행 (`SMAppService`) |
+| `Sources/HoldStack/FocusLossWatcher.swift` | 다른 앱 클릭, ⌘⇥, 데스크탑 전환을 이유(`FocusLossReason`)와 함께 알린다. 내릴지는 `Preferences.shouldHide` |
+| `Sources/HoldCore/Age.swift` | 목록의 경과 시간 문구 (분 단위) |
+| `Sources/HoldCore/FocusInfo.swift` | 초점 요소가 입력칸인지 가리는 규칙. 실제 앱에서 읽은 값으로 검사한다 |
+| `Sources/HoldStack/FocusProbe.swift` | 붙여넣을 앱의 초점 요소 종류를 AX 로 읽는다 |
+| `Sources/HoldStack/DiagLog.swift` | `~/Library/Logs/HoldStack.log`. 권한과 붙여넣기 대상만 적는다 |
+| `Sources/HoldStack/HoldView.swift` | 목록 창 SwiftUI 뷰 |
 | `Sources/HoldStack/SettingsView.swift` | 설정 창, 단축키 녹화, 투명도 |
 | `scripts/make-icon.swift` | 아이콘을 코드로 그린다 |
 
@@ -41,10 +50,29 @@ macOS 메뉴 막대 앱. 질문을 스택에 보관하고 전역 단축키로 �
 | 클립보드는 `snapshot()` 으로 모든 형식을 저장한다 | 문자열만 저장하면 복사해 둔 이미지와 파일이 사라진다 |
 | 스택에서 빼기 전에 `Clipboard.isBusy` 를 본다 | 복원 전 두 번째 붙여넣기가 앞 항목을 "원래 클립보드"로 저장한다 |
 | `HoldItem` 에 필드를 더할 때는 옵셔널로 | 옛 `stack.json` 에 없는 키라서, 필수 필드면 저장된 스택 전체를 못 읽는다 |
-| 패널 `TextField` 는 한 줄로 둔다 | `axis: .vertical` 은 한글 조합 중 Enter 처리가 달라진다 |
+| 목록 창 입력칸은 한 줄, 작성 창 입력칸은 여러 줄(`⇧⏎` 줄바꿈) | 목록 창에서는 ⏎ 가 목록 동작이다. 작성 창은 줄이 늘면 `fitToContent` 로 창도 늘린다 |
+| 초점을 줄 때 `moveCursorToEnd` | macOS 는 초점이 가면 글 전체를 선택해서, 살려 둔 초안이 다음 글자에 통째로 지워진다 |
 | 패널 위치는 `setFrameAutosaveName("HoldStackPanel")` 이 저장한다 | 직접 저장 코드를 따로 두지 않는다 |
-| `main.swift` 의 숨은 Edit 메뉴를 지우지 않는다 | `.accessory` 앱은 이게 없으면 입력칸에서 ⌘C ⌘V ⌘A 가 안 먹는다 |
-| 패널이 떠 있을 때 hold 단축키는 포커스만 준다 | 다시 열면 쓰던 질문과 문장이 지워진다 |
+| `main.swift` 의 숨은 메인 메뉴를 지우지 않는다 | `.accessory` 앱은 이게 없으면 ⌘, 와 입력칸의 ⌘C ⌘V ⌘A 가 안 먹는다 |
+| 작성 창이 떠 있을 때 hold 단축키는 포커스만 준다 | 다시 열면 쓰던 질문과 문장이 지워진다 |
+| 창을 초점 잃음(`didResignKey`)으로 닫지 않는다. `FocusLossWatcher` 를 쓴다 | 데스크탑 전환도 초점을 뺏어서 이유를 구분할 수 없다. 설정이 이유별로 나뉜다 |
+| 창을 띄울 때마다 `applySpaceBehavior` 로 데스크탑 동작을 정한다 | `canJoinAllSpaces` 로 두고 전환 뒤에 닫으면 새 데스크탑에 한 번 따라왔다가 사라져 깜빡인다. 닫을 거면 처음부터 `moveToActiveSpace` |
+| 창 닫기 버튼은 `performClose` 를 덮어 `hide()` 로 보낸다 | 그냥 닫히면 키 모니터와 감시자가 남는다 |
+| 설정 창 키 감시는 `ShortcutRecorder.attach` 하나뿐 | 녹화 취소 esc 와 창 닫기 esc 를 두 감시가 나눠 받으면 순서가 보장되지 않는다 |
+| 창이 초점 잃음으로 내려가도 쓰던 글은 살린다 (`keepDraft`) | 목록 창과 작성 창 모두. 다시 열 때 비우지 않는다 |
+| 설정 뷰에 높이를 준다 | `Form` 은 스스로 높이가 없어 창이 제목 줄만 남는다 |
+| 화면을 바꾸면 스크래치 패키지로 그려서 본다 | 뷰 파일을 심볼릭 링크한 별도 패키지에서 `cacheDisplay` 로 PNG 를 만든다. 앱 코드에 디버그 코드를 넣지 않는다 |
+| 붙여넣기 전에 목록 창을 내린다 | 창이 초점을 쥐고 있으면 합성 ⌘V 가 창 자신으로 간다. 다시 띄울 때는 `orderFront`(초점 없이) |
+| 스택과 휴지통을 바꾸는 길은 모두 `HoldStore` 의 공개 함수를 거친다 | 거기서 undo 기록을 남긴다. 건너뛰면 되돌릴 수 없다 |
+| undo 기록은 `UndoOp`(removed, restored, purged, edited) 목록으로 `undo.json` 에 저장한다 | 메모리에만 두면 앱을 다시 켤 때 사라진다. 옛 형식 `[[UndoMark]]` 도 읽는다 |
+| undo 기록을 미리 지우지 않는다. 되돌릴 때 대상이 없는 기록만 건너뛴다 | 미리 지우면 "지우기 → 되살리기 → 스택으로" 처럼 이어지는 되돌리기가 끊긴다 |
+| 배포 빌드는 `--release` 로만 | 이 컴퓨터 인증서가 배포 파일에 들어가지 않게 한다 |
+| 입력칸 판정은 "읽었는데 입력칸이 아닐 때만 막기" | 초점을 알려 주지 않는 앱에서 붙여넣기가 막히면 안 된다. `AXWebArea` 도 선택 범위를 가지므로 그것으로 가리지 않는다 |
+| 붙여넣기 전에 우리 창이 키를 쥐는지 본다 (`NSApp.keyWindow`, 작성 창 표시 여부) | 비활성 패널은 앞 앱을 바꾸지 않은 채 키를 가져간다. 앞 앱의 초점만 보면 ⌘V 가 우리 창으로 가는 걸 놓친다 |
+| 막을 때는 스택에서 빼기 전에 막는다 | 빼고 나서 막으면 의문이 휴지통으로 간다 |
+| 고치기는 목록 창 안에서 그 자리에(`PanelModel.editingID`), 질문만. `HoldStore.update(id:text:)` 를 거친다. 고치는 중에는 방향키와 지우기가 입력칸 몫 | 문장은 원문 인용이라 바꾸면 원문과 어긋난다. 고친 것도 `.edited` 로 되돌린다 |
+| 휴지통 개수는 `Preferences.trashLimit` → `HoldStore.trashLimit` | undo 기록 상한도 같은 값. 줄여도 즉시 자르지 않는다 |
+| 로그에 클립보드 내용을 적지 않는다 | 개인 정보. 글자 수만 |
 | 개인 정보를 넣지 않는다 | 배포용이다. 번들 ID 는 `app.holdstack.HoldStack`. 사람 이름, 계정, 절대 경로를 코드와 문서에 쓰지 않는다 |
 | 순수 로직은 `HoldCore` 에 둔다 | 자동 검증이 되는 곳은 거기뿐이다 |
 | `switch` 에서 `case A, B where cond` 금지 | `where` 가 B 에만 걸린다. `case A where cond, B where cond` |
@@ -52,6 +80,6 @@ macOS 메뉴 막대 앱. 질문을 스택에 보관하고 전역 단축키로 �
 ## 자동 검증이 안 되는 것
 
 전역 단축키, 패널 조작, 다른 앱에 붙여넣기는 사람이 확인한다. 합성 키 입력에 터미널의 손쉬운 사용 권한이 필요하기 때문이다.
-변경 후 README 「사용법」 표의 키를 한 번씩 눌러본다. 설정 변경 후에는 새 조합이 곧바로 먹는지, 옛 조합이 풀렸는지 본다. 클립보드를 건드렸으면 이미지를 복사해 둔 채 ⌃⇧P 를 누르고 이미지가 남는지 본다.
+변경 후 README 「사용법」 표의 키를 한 번씩 눌러본다. 붙여넣기 문제는 `~/Library/Logs/HoldStack.log` 의 `ax=` 와 `front=` 부터 본다. 설정 변경 후에는 새 조합이 곧바로 먹는지, 옛 조합이 풀렸는지 본다. 클립보드를 건드렸으면 이미지를 복사해 둔 채 ⌃⇧P 를 누르고 이미지가 남는지 본다.
 
-ad-hoc 서명이라 재빌드마다 손쉬운 사용 권한이 풀린다. 붙여넣기가 안 되면 먼저 권한을 다시 켠다.
+`make-cert.sh` 인증서 없이 빌드하면 ad-hoc 서명이라 재빌드마다 손쉬운 사용 권한이 풀린다. 붙여넣기가 안 되면 로그의 `ax=` 부터 본다.
