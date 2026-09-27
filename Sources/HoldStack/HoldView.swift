@@ -4,6 +4,7 @@ import SwiftUI
 final class PanelModel: ObservableObject {
     @Published var draft = ""
     @Published var showingTrash = false
+    @Published var notice: String?
     @Published var canPaste = true
     @Published var selection = 0 { didSet { expanded = false } }
     @Published var expanded = false
@@ -118,7 +119,9 @@ struct HoldView: View {
 
     private var footer: some View {
         VStack(spacing: 4) {
-            if !model.canPaste {
+            if let notice = model.notice {
+                Text(notice).foregroundStyle(.orange)
+            } else if !model.canPaste {
                 Text("손쉬운 사용 권한이 없어 불러온 내용은 클립보드에만 들어갑니다. ⌘V 로 붙여넣으세요")
                     .foregroundStyle(.orange)
             }

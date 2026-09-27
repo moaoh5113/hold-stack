@@ -92,6 +92,7 @@ struct SettingsView: View {
                     .frame(width: 220)
                 }
                 Toggle("불러온 뒤 창 닫기", isOn: $prefs.closeAfterLoad)
+                Toggle("입력칸이 아니면 붙여넣지 않기", isOn: $prefs.pasteOnlyIntoText)
                 Toggle("다른 앱을 누르면 창 닫기", isOn: $prefs.hideOnFocusLoss)
                 Toggle("데스크탑을 옮기면 창 닫기", isOn: $prefs.hideOnSpaceChange)
                 Picker("→ 로 펼칠 때", selection: $prefs.expandStyle) {

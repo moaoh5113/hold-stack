@@ -64,7 +64,8 @@ enum Clipboard {
         }
         let ready = { target == nil || NSWorkspace.shared.frontmostApplication?.processIdentifier == target?.processIdentifier }
         poll(until: ready, timeout: 1.0) { ok in
-            DiagLog.write("paste: send cmd+v frontReady=\(ok) front=\(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil")")
+            let focus = FocusProbe.focused(in: target ?? NSWorkspace.shared.frontmostApplication)
+            DiagLog.write("paste: send cmd+v frontReady=\(ok) front=\(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil") focus: \(focus?.summary ?? "unreadable")")
             let ours = pb.changeCount
             sendKey(kVK_ANSI_V)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

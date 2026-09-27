@@ -147,7 +147,13 @@ final class PanelController {
 
     /// 창을 닫은 뒤 원래 앱에 붙여넣는다.
     private func load(at index: Int) {
-        guard !Clipboard.isBusy, let item = store.remove(at: index) else { return NSSound.beep() }
+        guard !Clipboard.isBusy, store.items.indices.contains(index) else { return NSSound.beep() }
+        if prefs.pasteOnlyIntoText, FocusInfo.shouldBlockPaste(FocusProbe.focused(in: previousApp)) {
+            DiagLog.write("paste blocked: \(FocusProbe.focused(in: previousApp)?.summary ?? "nil") app=\(previousApp?.bundleIdentifier ?? "nil")")
+            model.notice = "입력칸을 먼저 클릭하세요. 의문은 그대로 남아 있습니다"
+            return NSSound.beep()
+        }
+        guard let item = store.remove(at: index) else { return NSSound.beep() }
         Clipboard.reserve()
         // 창이 초점을 쥐고 있으면 ⌘V 가 이 창으로 온다. 잠깐 내렸다가 초점 없이 다시 띄운다
         hide()
@@ -177,6 +183,7 @@ final class PanelController {
 
     /// true 면 이벤트를 삼킨다.
     private func handle(_ event: NSEvent) -> Bool {
+        model.notice = nil
         let editor = panel.firstResponder as? NSTextView
         if editor?.hasMarkedText() == true { return false } // 한글 조합 중에는 IME 에 맡긴다
         let draftEmpty = model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

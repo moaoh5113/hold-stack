@@ -302,4 +302,21 @@ do {
     check(s.undo() && s.trash.count == 10 && s.trash.last?.text == "9" && s.items.map(\.text) == ["new"], "가득 찬 휴지통에서 밀려난 것도 undo 로 돌아온다")
 }
 
+do {
+    // 2026-09-27 실제 앱에서 읽은 값
+    let ghostty = FocusInfo(role: "AXTextArea", valueSettable: false, hasEditableAncestor: false)
+    let chromeInput = FocusInfo(role: "AXTextArea", valueSettable: true, hasEditableAncestor: true)
+    let chromeBody = FocusInfo(role: "AXWebArea", valueSettable: false, hasEditableAncestor: false)
+    let finder = FocusInfo(role: "AXOutline", valueSettable: false, hasEditableAncestor: false)
+    check(!FocusInfo.shouldBlockPaste(ghostty) && !FocusInfo.shouldBlockPaste(chromeInput), "터미널과 웹 입력칸에는 붙여넣는다")
+    check(FocusInfo.shouldBlockPaste(chromeBody) && FocusInfo.shouldBlockPaste(finder), "웹 본문과 Finder 목록에는 막는다")
+    check(!FocusInfo.shouldBlockPaste(nil), "초점을 못 읽으면 막지 않는다")
+    let contentEditable = FocusInfo(role: "AXGroup", valueSettable: false, hasEditableAncestor: true)
+    check(!FocusInfo.shouldBlockPaste(contentEditable), "편집 가능한 조상이 있으면 입력칸으로 본다")
+    let suite = "holdstack-check-\(UUID().uuidString)"
+    let d = UserDefaults(suiteName: suite)!
+    defer { d.removePersistentDomain(forName: suite) }
+    check(Preferences(defaults: d).pasteOnlyIntoText, "입력칸 확인은 기본으로 켜짐")
+}
+
 exit(failures == 0 ? 0 : 1)

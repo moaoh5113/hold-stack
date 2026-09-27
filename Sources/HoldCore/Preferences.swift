@@ -32,6 +32,7 @@ public final class Preferences: ObservableObject {
         static let hideOnSpaceChange = "hideOnSpaceChange"
         static let questionFontSize = "questionFontSize"
         static let quoteFontSize = "quoteFontSize"
+        static let pasteOnlyIntoText = "pasteOnlyIntoText"
     }
     private let defaults: UserDefaults
 
@@ -70,6 +71,11 @@ public final class Preferences: ObservableObject {
         }
     }
 
+    /// 초점이 입력칸이 아니면 붙여넣지 않고 스택에 남긴다.
+    @Published public var pasteOnlyIntoText: Bool {
+        didSet { defaults.set(pasteOnlyIntoText, forKey: Key.pasteOnlyIntoText) }
+    }
+
     /// 나의 질문 글자 크기(pt).
     @Published public var questionFontSize: Double {
         didSet {
@@ -99,6 +105,7 @@ public final class Preferences: ObservableObject {
         showCountInMenuBar = defaults.object(forKey: Key.showCount) as? Bool ?? true
         hideOnFocusLoss = defaults.object(forKey: Key.hideOnFocusLoss) as? Bool ?? true
         hideOnSpaceChange = defaults.object(forKey: Key.hideOnSpaceChange) as? Bool ?? true
+        pasteOnlyIntoText = defaults.object(forKey: Key.pasteOnlyIntoText) as? Bool ?? true
         questionFontSize = Self.clampFont(defaults.object(forKey: Key.questionFontSize) as? Double ?? 13)
         quoteFontSize = Self.clampFont(defaults.object(forKey: Key.quoteFontSize) as? Double ?? 12)
         expandStyle = defaults.string(forKey: Key.expandStyle).flatMap(ExpandStyle.init) ?? .inline

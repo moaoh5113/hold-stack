@@ -96,6 +96,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func popTop() {
+        let front = NSWorkspace.shared.frontmostApplication
+        if prefs.pasteOnlyIntoText, FocusInfo.shouldBlockPaste(FocusProbe.focused(in: front)) {
+            DiagLog.write("pop blocked: app=\(front?.bundleIdentifier ?? "nil")")
+            return NSSound.beep()
+        }
         guard !Clipboard.isBusy, let item = store.pop() else { return NSSound.beep() }
         Clipboard.paste(item.pasteText, into: NSWorkspace.shared.frontmostApplication)
     }
