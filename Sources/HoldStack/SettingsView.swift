@@ -74,15 +74,18 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("일반") {
-                Toggle("로그인할 때 자동으로 실행", isOn: Binding(get: { loginItem.enabled }, set: { loginItem.set($0) }))
+            Section(L("일반")) {
+                Picker(L("언어"), selection: $prefs.language) {
+                    ForEach(AppLanguage.allCases) { Text($0.title).tag($0) }
+                }
+                Toggle(L("로그인할 때 자동으로 실행"), isOn: Binding(get: { loginItem.enabled }, set: { loginItem.set($0) }))
                 if let message = loginItem.message {
                     Text(message).foregroundStyle(.orange).font(.callout)
                 }
-                Toggle("메뉴 막대에 보관 개수 표시", isOn: $prefs.showCountInMenuBar)
+                Toggle(L("메뉴 막대에 보관 개수 표시"), isOn: $prefs.showCountInMenuBar)
             }
-            Section("목록 창") {
-                LabeledContent("투명도") {
+            Section(L("목록 창")) {
+                LabeledContent(L("투명도")) {
                     HStack {
                         Slider(value: $prefs.opacity, in: Preferences.opacityRange)
                         Text("\(Int((prefs.opacity * 100).rounded()))%")
@@ -91,41 +94,38 @@ struct SettingsView: View {
                     }
                     .frame(width: 220)
                 }
-                LabeledContent("휴지통에 둘 개수") {
+                LabeledContent(L("휴지통에 둘 개수")) {
                     HStack(spacing: 4) {
                         // 범위 밖 값은 Preferences 가 5~50 으로 맞춘다
                         TextField("", value: $prefs.trashLimit, format: .number)
                             .textFieldStyle(.roundedBorder)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 52)
-                        Text("개")
+                        Text(L("개"))
                     }
                 }
-                Toggle("불러온 뒤 창 닫기", isOn: $prefs.closeAfterLoad)
-                Toggle("입력칸이 아니면 붙여넣지 않기", isOn: $prefs.pasteOnlyIntoText)
-                Toggle("다른 앱을 누르면 창 닫기", isOn: $prefs.hideOnFocusLoss)
-                Toggle("데스크탑을 옮기면 창 닫기", isOn: $prefs.hideOnSpaceChange)
-                Picker("→ 로 펼칠 때", selection: $prefs.expandStyle) {
+                Toggle(L("불러온 뒤 창 닫기"), isOn: $prefs.closeAfterLoad)
+                Toggle(L("입력칸이 아니면 붙여넣지 않기"), isOn: $prefs.pasteOnlyIntoText)
+                Toggle(L("다른 앱을 누르면 창 닫기"), isOn: $prefs.hideOnFocusLoss)
+                Toggle(L("데스크탑을 옮기면 창 닫기"), isOn: $prefs.hideOnSpaceChange)
+                Picker(L("→ 로 펼칠 때"), selection: $prefs.expandStyle) {
                     ForEach(ExpandStyle.allCases) { Text($0.title).tag($0) }
                 }
-                Text("창을 옮기거나 크기를 바꾸면 다음에도 그 자리, 그 크기로 열립니다")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
             }
-            Section("글자 크기") {
-                fontRow("의문을 가진 문장", value: $prefs.quoteFontSize)
-                fontRow("나의 질문", value: $prefs.questionFontSize)
+            Section(L("글자 크기")) {
+                fontRow(L("의문을 가진 문장"), value: $prefs.quoteFontSize)
+                fontRow(L("나의 질문"), value: $prefs.questionFontSize)
                 VStack(alignment: .leading, spacing: 4) {
-                    QuoteLine(text: "빌드할 때마다 서명이 바뀌어 권한이 풀린다.", size: prefs.quoteFontSize, lineLimit: 1)
-                    Text("왜 그래야 하는 걸까").font(.system(size: prefs.questionFontSize))
+                    QuoteLine(text: L("빌드할 때마다 서명이 바뀌어 권한이 풀린다."), size: prefs.quoteFontSize, lineLimit: 1)
+                    Text(L("왜 그래야 하는 걸까")).font(.system(size: prefs.questionFontSize))
                 }
                 .padding(.vertical, 4)
             }
-            Section("전역 단축키") {
+            Section(L("전역 단축키")) {
                 ForEach(HotKeyAction.allCases) { action in
                     LabeledContent(action.title) {
                         HStack(spacing: 10) {
-                            Button(recorder.recording == action ? "키 조합을 누르세요…" : settings[action].display) {
+                            Button(recorder.recording == action ? L("키 조합을 누르세요…") : settings[action].display) {
                                 recorder.start(action)
                             }
                             .frame(minWidth: 140)
@@ -143,22 +143,15 @@ struct SettingsView: View {
                 }
                 HStack {
                     Spacer()
-                    Button("단축키 기본값으로") {
+                    Button(L("단축키 기본값으로")) {
                         recorder.stop()
                         settings.resetToDefaults()
                         recorder.message = nil
                     }
                 }
             }
-            Section("목록 창 안의 키 (고정)") {
-                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 4) {
-                    ForEach(Self.panelKeys, id: \.0) { key, meaning in
-                        GridRow {
-                            Text(key).monospaced()
-                            Text(meaning).foregroundStyle(.secondary)
-                        }
-                    }
-                }
+            Section {
+                Text(L("목록 창에서 ⌘/ 를 누르면 단축키를 볼 수 있습니다")).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
@@ -173,12 +166,6 @@ struct SettingsView: View {
             }
         }
     }
-
-    private static let panelKeys = [
-        ("↑ ↓", "이동"), ("→ ←", "선택한 항목 펼치기, 접기 (방식은 위에서 고른다)"), ("⏎", "불러오기 (휴지통에서는 스택으로 되돌리기)"),
-        ("⌫", "휴지통으로 (휴지통에서는 지우기)"), ("⇥", "스택과 휴지통 전환"), ("⌘E", "고른 의문의 질문 고치기"), ("⌘Z", "마지막 동작 되돌리기, 최대 10단계"),
-        ("⌘,", "설정 열기"), ("esc", "닫기"),
-    ]
 }
 
 extension Shortcut {

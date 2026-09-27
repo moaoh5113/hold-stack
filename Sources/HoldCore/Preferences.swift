@@ -8,8 +8,8 @@ public enum ExpandStyle: String, CaseIterable, Identifiable {
     public var id: String { rawValue }
     public var title: String {
         switch self {
-        case .inline: "그 자리에서 펼치기"
-        case .detail: "내용만 크게 보기"
+        case .inline: L("그 자리에서 펼치기")
+        case .detail: L("내용만 크게 보기")
         }
     }
 }
@@ -34,6 +34,7 @@ public final class Preferences: ObservableObject {
         static let quoteFontSize = "quoteFontSize"
         static let pasteOnlyIntoText = "pasteOnlyIntoText"
         static let trashLimit = "trashLimit"
+        static let language = "language"
     }
     private let defaults: UserDefaults
 
@@ -80,6 +81,14 @@ public final class Preferences: ObservableObject {
         didSet { defaults.set(pasteOnlyIntoText, forKey: Key.pasteOnlyIntoText) }
     }
 
+    /// 기본은 시스템 언어를 따른다. 바꾸면 곧바로 번역표가 바뀐다.
+    @Published public var language: AppLanguage {
+        didSet {
+            L10n.language = language
+            defaults.set(language.rawValue, forKey: Key.language)
+        }
+    }
+
     /// 휴지통과 되돌리기 기록 개수.
     @Published public var trashLimit: Int {
         didSet {
@@ -118,6 +127,9 @@ public final class Preferences: ObservableObject {
         showCountInMenuBar = defaults.object(forKey: Key.showCount) as? Bool ?? true
         hideOnFocusLoss = defaults.object(forKey: Key.hideOnFocusLoss) as? Bool ?? true
         hideOnSpaceChange = defaults.object(forKey: Key.hideOnSpaceChange) as? Bool ?? true
+        let savedLanguage = defaults.string(forKey: Key.language).flatMap(AppLanguage.init) ?? .system
+        language = savedLanguage
+        L10n.language = savedLanguage
         trashLimit = min(max(defaults.object(forKey: Key.trashLimit) as? Int ?? HoldStore.defaultTrashLimit,
                              HoldStore.trashLimitRange.lowerBound), HoldStore.trashLimitRange.upperBound)
         pasteOnlyIntoText = defaults.object(forKey: Key.pasteOnlyIntoText) as? Bool ?? true

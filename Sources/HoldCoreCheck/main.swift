@@ -1,6 +1,7 @@
 import Foundation
 import HoldCore
 
+L10n.language = .ko // 검사 문구는 한국어 기준
 var failures = 0
 func check(_ ok: Bool, _ name: String, line: Int = #line) {
     print(ok ? "PASS" : "FAIL", name, ok ? "" : "(line \(line))")
@@ -216,6 +217,7 @@ do {
 
 do {
     let now = Date()
+    L10n.language = .ko
     let ago = { (sec: Double) in Age.text(since: now.addingTimeInterval(-sec), now: now) }
     check(ago(0) == "방금" && ago(59) == "방금", "1분 안은 방금")
     check(ago(60) == "1분 전" && ago(11 * 60 + 4) == "11분 전", "분 단위, 초는 버린다")
@@ -360,6 +362,23 @@ do {
     check(Preferences(defaults: d).trashLimit == 10, "휴지통 개수 기본값 10")
     Preferences(defaults: d).trashLimit = 20
     check(Preferences(defaults: d).trashLimit == 20, "휴지통 개수 저장")
+}
+
+do {
+    L10n.language = .en
+    let now = Date()
+    check(Age.text(since: now, now: now) == "just now" && Age.text(since: now.addingTimeInterval(-600), now: now) == "10m ago", "영어로 경과 시간")
+    check(L("휴지통") == "Trash" && L("최근 %d개까지 보관", 20) == "Keeps the latest 20", "영어 번역과 값 넣기")
+    check(L("번역표에 없는 문구") == "번역표에 없는 문구", "표에 없으면 한국어 그대로")
+    L10n.language = .ko
+    check(L("휴지통") == "휴지통" && L("최근 %d개까지 보관", 20) == "최근 20개까지 보관", "한국어는 그대로")
+    let suite = "holdstack-check-\(UUID().uuidString)"
+    let d = UserDefaults(suiteName: suite)!
+    defer { d.removePersistentDomain(forName: suite) }
+    check(Preferences(defaults: d).language == .system, "언어 기본값은 시스템 따르기")
+    Preferences(defaults: d).language = .en
+    check(Preferences(defaults: d).language == .en && L10n.language == .en, "언어 설정 저장과 즉시 반영")
+    L10n.language = .ko
 }
 
 exit(failures == 0 ? 0 : 1)

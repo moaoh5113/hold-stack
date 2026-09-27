@@ -46,9 +46,9 @@ public enum HotKeyAction: String, CaseIterable, Codable, Identifiable {
 
     public var title: String {
         switch self {
-        case .hold: "의문 적기"
-        case .toggleList: "목록 열기"
-        case .pop: "맨 위 꺼내기"
+        case .hold: L("의문 적기")
+        case .toggleList: L("목록 열기")
+        case .pop: L("맨 위 꺼내기")
         }
     }
 
@@ -69,9 +69,9 @@ public enum ShortcutError: Error, Equatable {
 
     public var message: String {
         switch self {
-        case .needsModifier: "⌃, ⌥, ⌘ 중 하나는 함께 눌러야 합니다"
-        case .reserved: "복사, 붙여넣기 같은 편집 단축키는 쓸 수 없습니다"
-        case .duplicate(let other): "「\(other.title)」에서 이미 쓰는 조합입니다"
+        case .needsModifier: L("⌃, ⌥, ⌘ 중 하나는 함께 눌러야 합니다")
+        case .reserved: L("복사, 붙여넣기 같은 편집 단축키는 쓸 수 없습니다")
+        case .duplicate(let other): L("「%@」에서 이미 쓰는 조합입니다", other.title)
         }
     }
 }

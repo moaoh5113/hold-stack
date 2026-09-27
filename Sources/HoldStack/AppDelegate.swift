@@ -21,12 +21,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setUpStatusItem()
         panel.onHide = { [weak self] in self?.settingsWindow?.close() }
         panel.ownWindowWillTakeKeys = { [weak self] in self?.compose.isVisible ?? false }
+        panel.globalKeys = { [weak self] in
+            guard let self else { return [] }
+            return HotKeyAction.allCases.filter(self.settings.isEnabled).map { (self.settings[$0].display, $0.title) }
+        }
         settings.$shortcuts
             .combineLatest(settings.$disabled)
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.registerHotKeys()
                 self?.rebuildMenu()
+            }
+            .store(in: &bag)
+        prefs.$language
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.rebuildMenu()
+                self?.settingsWindow?.title = L("HoldStack 설정")
             }
             .store(in: &bag)
         prefs.$trashLimit
@@ -75,7 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard registerHotKeys().contains(action) else { return nil }
         try? settings.set(previous, for: action)
         registerHotKeys()
-        return "\(shortcut.display) 는 다른 앱이나 시스템이 이미 쓰고 있습니다"
+        return L("%@ 는 다른 앱이나 시스템이 이미 쓰고 있습니다", shortcut.display)
     }
 
     /// 다시 켰는데 다른 앱이 그 조합을 차지했으면 끈 채로 되돌린다.
@@ -84,7 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard on, registerHotKeys().contains(action) else { return nil }
         settings.setEnabled(false, for: action)
         registerHotKeys()
-        return "\(settings[action].display) 는 다른 앱이나 시스템이 이미 쓰고 있어 켜지 못했습니다"
+        return L("%@ 는 다른 앱이나 시스템이 이미 쓰고 있어 켜지 못했습니다", settings[action].display)
     }
 
     // MARK: 동작
@@ -135,15 +147,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(item(menuTitle(.toggleList), #selector(openPanel)))
         menu.addItem(item(menuTitle(.hold), #selector(composeFromMenu)))
         menu.addItem(item(menuTitle(.pop), #selector(popFromMenu)))
-        menu.addItem(item("휴지통 열기", #selector(openTrash)))
+        menu.addItem(item(L("휴지통 열기"), #selector(openTrash)))
         menu.addItem(.separator())
-        menu.addItem(item("전체 비우기", #selector(clearAll)))
-        menu.addItem(item("손쉬운 사용 권한 요청…", #selector(requestAccess)))
-        let settingsItem = item("설정…", #selector(openSettings))
+        menu.addItem(item(L("전체 비우기"), #selector(clearAll)))
+        menu.addItem(item(L("손쉬운 사용 권한 요청…"), #selector(requestAccess)))
+        let settingsItem = item(L("설정…"), #selector(openSettings))
         settingsItem.keyEquivalent = ","
         menu.addItem(settingsItem)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: L("종료"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
     }
 
@@ -174,7 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 })
             let view = SettingsView(settings: settings, prefs: prefs, loginItem: LoginItem(), recorder: recorder)
             let window = NSWindow(contentViewController: NSHostingController(rootView: view))
-            window.title = "HoldStack 설정"
+            window.title = L("HoldStack 설정")
             window.styleMask = [.titled, .closable]
             window.level = .floating // 목록 창 뒤로 숨지 않게
             window.collectionBehavior = [.moveToActiveSpace] // 열 때 데스크탑을 넘기지 않는다
@@ -195,10 +207,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func clearAll() {
         let alert = NSAlert()
-        alert.messageText = "보관된 의문 \(store.items.count)개를 모두 휴지통으로 옮길까요?"
-        alert.informativeText = "휴지통에서 ⏎ 로 다시 되돌릴 수 있습니다."
-        alert.addButton(withTitle: "휴지통으로")
-        alert.addButton(withTitle: "취소")
+        alert.messageText = L("보관된 의문 %d개를 모두 휴지통으로 옮길까요?", store.items.count)
+        alert.informativeText = L("휴지통에서 ⏎ 로 다시 되돌릴 수 있습니다.")
+        alert.addButton(withTitle: L("휴지통으로"))
+        alert.addButton(withTitle: L("취소"))
         NSApp.activate(ignoringOtherApps: true)
         if alert.runModal() == .alertFirstButtonReturn { store.clear() }
     }

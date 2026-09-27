@@ -16,6 +16,8 @@ final class PanelModel: ObservableObject {
     @Published var editingID: UUID?  // 질문을 고치는 중인 항목
     @Published var editDraft = ""
     @Published var editFocusTick = 0
+    @Published var showingKeys = false
+    var globalKeys: [(String, String)] = [] // 켜 둔 전역 단축키. 카드를 열 때 채운다
 }
 
 struct HoldView: View {
@@ -29,8 +31,8 @@ struct HoldView: View {
         VStack(spacing: 0) {
             if model.showingTrash {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("휴지통").font(.headline)
-                    Text("최근 \(prefs.trashLimit)개까지 보관").font(.caption).foregroundStyle(.secondary)
+                    Text(L("휴지통")).font(.headline)
+                    Text(L("최근 %d개까지 보관", prefs.trashLimit)).font(.caption).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
@@ -49,7 +51,7 @@ struct HoldView: View {
             if let item = detailItem {
                 detail(item)
             } else if shownItems.isEmpty {
-                Text(model.showingTrash ? "휴지통이 비어 있습니다" : "보관된 의문이 없습니다")
+                Text(model.showingTrash ? L("휴지통이 비어 있습니다") : L("보관된 의문이 없습니다"))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -59,6 +61,7 @@ struct HoldView: View {
             Divider()
             footer
         }
+        .overlay { if model.showingKeys { KeysCard(globalKeys: model.globalKeys) } }
         .frame(minWidth: 360, idealWidth: 560, maxWidth: .infinity, minHeight: 220, idealHeight: 400, maxHeight: .infinity)
         .background(.regularMaterial)
         .onAppear { inputFocused = true }
@@ -105,10 +108,10 @@ struct HoldView: View {
     /// 고치는 중인 질문. 테두리와 안내 줄로 보통 상태와 구분한다.
     private func editor(size: Double, onAccent: Bool) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Label("질문 고치는 중", systemImage: "pencil")
+            Label(L("질문 고치는 중"), systemImage: "pencil")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(onAccent ? Color.white : Color.accentColor)
-            TextField("질문", text: $model.editDraft, axis: .vertical)
+            TextField(L("질문"), text: $model.editDraft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.system(size: size))
                 .foregroundStyle(Color.primary)
@@ -122,10 +125,10 @@ struct HoldView: View {
 
     private var tabs: some View {
         HStack(spacing: 16) {
-            tab("스택 \(store.items.count)", on: !model.showingTrash) { model.onTab(false) }
-            tab("휴지통 \(store.trash.count)", on: model.showingTrash) { model.onTab(true) }
+            tab(L("스택 %d", store.items.count), on: !model.showingTrash) { model.onTab(false) }
+            tab(L("휴지통 %d", store.trash.count), on: model.showingTrash) { model.onTab(true) }
             Spacer()
-            Text("⇥ 전환").font(.caption).foregroundStyle(.secondary)
+            Text(L("⇥ 전환")).font(.caption).foregroundStyle(.secondary)
         }
         .padding(.horizontal, 14)
         .padding(.bottom, 8)
@@ -143,22 +146,17 @@ struct HoldView: View {
             .onTapGesture(perform: action)
     }
 
-    private let placeholder = "새 의문을 적고 Enter, 비워두면 목록을 고릅니다"
+    private let placeholder = L("새 의문을 적고 Enter, 비워두면 목록을 고릅니다")
 
     private var footer: some View {
         VStack(spacing: 4) {
             if let notice = model.notice {
                 Text(notice).foregroundStyle(.orange)
             } else if !model.canPaste {
-                Text("손쉬운 사용 권한이 없어 불러온 내용은 클립보드에만 들어갑니다. ⌘V 로 붙여넣으세요")
+                Text(L("손쉬운 사용 권한이 없어 불러온 내용은 클립보드에만 들어갑니다. ⌘V 로 붙여넣으세요"))
                     .foregroundStyle(.orange)
             }
-            Text(model.editingID != nil ? "⏎ 저장   ⇧⏎ 줄바꿈   esc 취소"
-                 : detailItem != nil
-                 ? (model.showingTrash ? "↑↓ 앞뒤 항목   ← 목록으로   ⏎ 스택으로 되돌리기   ⌫ 지우기"
-                                       : "↑↓ 앞뒤 항목   ← 목록으로   ⏎ 불러오기   ⌘E 고치기   ⌫ 휴지통으로")
-                 : model.showingTrash ? "↑↓ 이동   → 펼치기   ⏎ 스택으로 되돌리기   ⌫ 지우기   ⌘Z 되돌리기   esc 닫기"
-                 : "↑↓ 이동   → 펼치기   ⏎ 불러오기   ⌘E 고치기   ⌫ 휴지통으로   ⌘Z 되돌리기")
+            Text(model.editingID != nil ? L("⏎ 저장   ⇧⏎ 줄바꿈   esc 취소") : L("⌘/ 단축키"))
                 .foregroundStyle(.secondary)
         }
         .font(.caption)
@@ -174,7 +172,7 @@ struct HoldView: View {
                         Row(item: item, index: index, selected: index == model.selection,
                             expanded: index == model.selection && model.expanded,
                             questionSize: prefs.questionFontSize, quoteSize: prefs.quoteFontSize,
-                            deleteHelp: model.showingTrash ? "지우기" : "휴지통으로",
+                            deleteHelp: model.showingTrash ? L("지우기") : L("휴지통으로"),
                             onEdit: model.showingTrash ? nil : { model.onEdit(index) },
                             editor: model.editingID == item.id
                                 ? AnyView(editor(size: prefs.questionFontSize, onAccent: index == model.selection)) : nil,
@@ -234,7 +232,7 @@ private struct Row: View {
                             .foregroundStyle(selected ? .white.opacity(0.85) : .secondary)
                     }
                     .buttonStyle(.plain)
-                    .help("고치기 (⌘E)")
+                    .help(L("고치기 (⌘E)"))
                 }
                 Button(action: onDelete) {
                     Image(systemName: "xmark.circle.fill")
@@ -283,5 +281,55 @@ struct QuoteLine: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// ⌘/ 로 여는 단축키 카드. 목록 위에 떠서 목록을 가린다.
+private struct KeysCard: View {
+    let globalKeys: [(String, String)]
+
+    private var groups: [(String, [(String, String)])] {
+        [
+            (L("어디서든"), globalKeys),
+            (L("목록"), [
+                ("↑ ↓", L("이동")), ("→ ←", L("크게 보기와 목록")), ("⏎", L("붙여넣기")),
+                ("⌘E", L("질문 고치기")), ("⌫", L("휴지통으로")), ("⇥", L("스택과 휴지통 전환")),
+                ("⌘Z", L("되돌리기")), ("⌘,", L("설정")), ("esc", L("닫기")),
+            ]),
+            (L("휴지통"), [("⏎", L("스택으로 되돌리기")), ("⌫", L("지우기"))]),
+            (L("고치는 중"), [("⏎", L("저장")), ("⇧⏎", L("줄바꿈")), ("esc", L("취소"))]),
+        ].filter { !$0.1.isEmpty }
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(L("단축키")).font(.headline)
+                    ForEach(groups, id: \.0) { title, keys in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 4) {
+                                ForEach(keys, id: \.0) { key, meaning in
+                                    GridRow {
+                                        Text(key).font(.system(.callout, design: .monospaced))
+                                            .frame(width: 48, alignment: .leading) // 묶음마다 설명 칸을 맞춘다
+                                        Text(meaning).font(.callout)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Text(L("esc 또는 ⌘/ 로 닫기")).font(.caption).foregroundStyle(.secondary)
+                }
+                .padding(18)
+                .frame(maxWidth: 380, alignment: .leading)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 12)) // 뒤 목록이 비치지 않게
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.secondary.opacity(0.3)))
+            .padding(24)
+        }
     }
 }

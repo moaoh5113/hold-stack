@@ -1,3 +1,4 @@
+import HoldCore
 import AppKit
 
 let app = NSApplication.shared
@@ -10,7 +11,7 @@ app.run()
 /// 메뉴 막대는 보이지 않지만, 이게 있어야 ⌘, 와 입력칸의 ⌘C ⌘V ⌘A ⌘Z 가 먹는다.
 func makeMainMenu(settingsTarget: AppDelegate) -> NSMenu {
     let appMenu = NSMenu(title: "HoldStack")
-    let settings = appMenu.addItem(withTitle: "설정…", action: #selector(AppDelegate.openSettings), keyEquivalent: ",")
+    let settings = appMenu.addItem(withTitle: L("설정…"), action: #selector(AppDelegate.openSettings), keyEquivalent: ",")
     settings.target = settingsTarget
 
     let edit = NSMenu(title: "Edit")

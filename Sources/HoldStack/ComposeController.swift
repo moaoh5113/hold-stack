@@ -134,7 +134,7 @@ struct ComposeView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("의문 보관", systemImage: "square.and.pencil")
+            Label(L("의문 보관"), systemImage: "square.and.pencil")
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
@@ -155,7 +155,7 @@ struct ComposeView: View {
                 }
             }
 
-            TextField(model.quote == nil ? "떠오른 의문" : "이 문장에 대한 의문", text: $model.draft, axis: .vertical)
+            TextField(model.quote == nil ? L("떠오른 의문") : L("이 문장에 대한 의문"), text: $model.draft, axis: .vertical)
                 .lineLimit(1...6)
                 .textFieldStyle(.plain)
                 .font(.system(size: prefs.questionFontSize + 2))
@@ -165,9 +165,9 @@ struct ComposeView: View {
                 .focused($focused)
 
             HStack {
-                Text(model.quote == nil ? "선택한 문장 없이 의문만 보관합니다" : "질문을 비우면 문장만 보관합니다")
+                Text(model.quote == nil ? L("선택한 문장 없이 의문만 보관합니다") : L("질문을 비우면 문장만 보관합니다"))
                 Spacer()
-                Text("⇧⏎ 줄바꿈   ⏎ 보관   esc 취소")
+                Text(L("⇧⏎ 줄바꿈   ⏎ 보관   esc 취소"))
             }
             .font(.caption)
             .foregroundStyle(.secondary)

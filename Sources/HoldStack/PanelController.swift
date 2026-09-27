@@ -22,6 +22,8 @@ final class PanelController {
     var onHide: () -> Void = {}
     /// 목록 창이 내려간 뒤 키 입력을 가져갈 우리 창(작성 창)이 떠 있으면 true.
     var ownWindowWillTakeKeys: () -> Bool = { false }
+    /// 단축키 카드에 보일 전역 단축키. 설정에서 바뀔 수 있어 열 때마다 묻는다.
+    var globalKeys: () -> [(String, String)] = { [] }
     private lazy var watcher = FocusLossWatcher { [weak self] reason in
         guard let self, self.prefs.shouldHide(for: reason), self.isVisible else { return }
         self.keepDraft = !self.model.draft.isEmpty
@@ -96,6 +98,7 @@ final class PanelController {
 
     func hide() {
         model.editingID = nil
+        model.showingKeys = false
         generation += 1
         watcher.stop()
         onHide()
@@ -178,12 +181,12 @@ final class PanelController {
         // 우리 창이 키를 쥐면 ⌘V 가 그 창으로 간다. 빼기 전에 막는다
         if ownWindowWillTakeKeys() {
             DiagLog.write("paste blocked: compose window open")
-            model.notice = "작성 창을 닫은 뒤 다시 고르세요. 의문은 그대로 남아 있습니다"
+            model.notice = L("작성 창을 닫은 뒤 다시 고르세요. 의문은 그대로 남아 있습니다")
             return NSSound.beep()
         }
         if prefs.pasteOnlyIntoText, FocusInfo.shouldBlockPaste(FocusProbe.focused(in: previousApp)) {
             DiagLog.write("paste blocked: \(FocusProbe.focused(in: previousApp)?.summary ?? "nil") app=\(previousApp?.bundleIdentifier ?? "nil")")
-            model.notice = "입력칸을 먼저 클릭하세요. 의문은 그대로 남아 있습니다"
+            model.notice = L("입력칸을 먼저 클릭하세요. 의문은 그대로 남아 있습니다")
             return NSSound.beep()
         }
         guard let item = store.remove(at: index) else { return NSSound.beep() }
@@ -221,6 +224,16 @@ final class PanelController {
         if editor?.hasMarkedText() == true { return false } // 한글 조합 중에는 IME 에 맡긴다
         let draftEmpty = model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let key = Int(event.keyCode)
+
+        if key == kVK_ANSI_Slash && event.modifierFlags.contains(.command) {
+            model.globalKeys = globalKeys()
+            model.showingKeys.toggle()
+            return true
+        }
+        if model.showingKeys {
+            if key == kVK_Escape { model.showingKeys = false }
+            return true // 카드가 떠 있는 동안 다른 키는 먹지 않는다
+        }
 
         // 고치는 중에는 방향키와 지우기가 입력칸 몫이다
         if model.editingID != nil {
