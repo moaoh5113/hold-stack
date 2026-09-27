@@ -1,6 +1,21 @@
 import AppKit
 import HoldCore
 
+/// 입력칸에 초점이 가면 macOS 가 글 전체를 선택한다. 이어 쓰다 통째로 지우지 않게 커서를 끝으로 옮긴다.
+func moveCursorToEnd(in window: NSWindow) {
+    DispatchQueue.main.async {
+        guard let editor = window.firstResponder as? NSTextView else { return }
+        editor.setSelectedRange(NSRange(location: (editor.string as NSString).length, length: 0))
+    }
+}
+
+/// 따라오지 않는 창은 연 데스크탑에 머문다. 전환하면 보이지 않는 곳에서 조용히 닫힌다.
+func applySpaceBehavior(to window: NSWindow, prefs: Preferences) {
+    window.collectionBehavior = prefs.followsAcrossDesktops
+        ? [.canJoinAllSpaces, .fullScreenAuxiliary]
+        : [.moveToActiveSpace, .fullScreenAuxiliary]
+}
+
 /// 다른 앱 클릭, ⌘⇥, 데스크탑 전환을 이유와 함께 알린다.
 final class FocusLossWatcher {
     private let onLeave: (FocusLossReason) -> Void

@@ -1,5 +1,6 @@
 import AppKit
 import Carbon
+import Combine
 import HoldCore
 import SwiftUI
 
@@ -29,6 +30,7 @@ final class ComposeController {
     private let panel: ComposePanel
     private let hosting: NSHostingView<ComposeView>
     private var keyMonitor: Any?
+    private var bag: Set<AnyCancellable> = []
     private static let frameName = "HoldStackCompose"
 
     var isVisible: Bool { panel.isVisible }
@@ -45,9 +47,15 @@ final class ComposeController {
         panel.isMovableByWindowBackground = true
         panel.level = .floating
         panel.hidesOnDeactivate = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.contentView = hosting
         panel.setFrameAutosaveName(Self.frameName)
+        // 줄이 늘면 창도 늘린다. 처음 연 크기에 묶이면 둘째 줄부터 잘린다
+        model.$draft
+            .map { $0.filter { $0 == "\n" }.count }
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.fitToContent() }
+            .store(in: &bag)
         panel.onClose = { [weak self] in
             self?.keepDraft = false
             self?.hide()
@@ -81,8 +89,10 @@ final class ComposeController {
     }
 
     func focus() {
+        applySpaceBehavior(to: panel, prefs: prefs)
         model.focusTick += 1
         panel.makeKeyAndOrderFront(nil)
+        moveCursorToEnd(in: panel)
         watcher.start()
         guard keyMonitor == nil else { return }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -104,6 +114,8 @@ final class ComposeController {
         case kVK_Escape:
             keepDraft = false
             hide()
+        case kVK_Return where event.modifierFlags.contains(.shift):
+            (panel.firstResponder as? NSTextView)?.insertNewlineIgnoringFieldEditor(nil)
         case kVK_Return, kVK_ANSI_KeypadEnter:
             guard store.push(model.draft, quote: model.quote) else { NSSound.beep(); return true }
             keepDraft = false
@@ -143,7 +155,8 @@ struct ComposeView: View {
                 }
             }
 
-            TextField(model.quote == nil ? "떠오른 의문" : "이 문장에 대한 의문", text: $model.draft)
+            TextField(model.quote == nil ? "떠오른 의문" : "이 문장에 대한 의문", text: $model.draft, axis: .vertical)
+                .lineLimit(1...6)
                 .textFieldStyle(.plain)
                 .font(.system(size: prefs.questionFontSize + 2))
                 .padding(10)
@@ -154,7 +167,7 @@ struct ComposeView: View {
             HStack {
                 Text(model.quote == nil ? "선택한 문장 없이 의문만 보관합니다" : "질문을 비우면 문장만 보관합니다")
                 Spacer()
-                Text("⏎ 보관   esc 취소")
+                Text("⇧⏎ 줄바꿈   ⏎ 보관   esc 취소")
             }
             .font(.caption)
             .foregroundStyle(.secondary)

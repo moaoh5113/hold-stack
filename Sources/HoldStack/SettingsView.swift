@@ -91,6 +91,16 @@ struct SettingsView: View {
                     }
                     .frame(width: 220)
                 }
+                LabeledContent("휴지통에 둘 개수") {
+                    HStack(spacing: 4) {
+                        // 범위 밖 값은 Preferences 가 5~50 으로 맞춘다
+                        TextField("", value: $prefs.trashLimit, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 52)
+                        Text("개")
+                    }
+                }
                 Toggle("불러온 뒤 창 닫기", isOn: $prefs.closeAfterLoad)
                 Toggle("입력칸이 아니면 붙여넣지 않기", isOn: $prefs.pasteOnlyIntoText)
                 Toggle("다른 앱을 누르면 창 닫기", isOn: $prefs.hideOnFocusLoss)
@@ -166,7 +176,7 @@ struct SettingsView: View {
 
     private static let panelKeys = [
         ("↑ ↓", "이동"), ("→ ←", "선택한 항목 펼치기, 접기 (방식은 위에서 고른다)"), ("⏎", "불러오기 (휴지통에서는 스택으로 되돌리기)"),
-        ("⌫", "휴지통으로 (휴지통에서는 지우기)"), ("⇥", "스택과 휴지통 전환"), ("⌘Z", "마지막 동작 되돌리기, 최대 10단계"),
+        ("⌫", "휴지통으로 (휴지통에서는 지우기)"), ("⇥", "스택과 휴지통 전환"), ("⌘E", "고른 의문의 질문 고치기"), ("⌘Z", "마지막 동작 되돌리기, 최대 10단계"),
         ("⌘,", "설정 열기"), ("esc", "닫기"),
     ]
 }

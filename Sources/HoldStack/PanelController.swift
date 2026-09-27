@@ -20,6 +20,8 @@ final class PanelController {
     private var previousApp: NSRunningApplication? // 붙여넣을 곳
     private var keepDraft = false // 다른 곳을 눌러 내렸으면 쓰던 질문을 살린다
     var onHide: () -> Void = {}
+    /// 목록 창이 내려간 뒤 키 입력을 가져갈 우리 창(작성 창)이 떠 있으면 true.
+    var ownWindowWillTakeKeys: () -> Bool = { false }
     private lazy var watcher = FocusLossWatcher { [weak self] reason in
         guard let self, self.prefs.shouldHide(for: reason), self.isVisible else { return }
         self.keepDraft = !self.model.draft.isEmpty
@@ -41,7 +43,6 @@ final class PanelController {
         panel.isMovableByWindowBackground = true
         panel.level = .floating
         panel.hidesOnDeactivate = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.contentView = NSHostingView(rootView: HoldView(store: store, model: model, prefs: prefs))
         panel.contentMinSize = NSSize(width: 360, height: 220)
         panel.setContentSize(NSSize(width: 560, height: 400))
@@ -51,6 +52,7 @@ final class PanelController {
         model.onPick = { [weak self] in self?.pick(at: $0) }
         model.onTab = { [weak self] in self?.setTrashMode($0) }
         model.onDelete = { [weak self] in self?.delete(at: $0) }
+        model.onEdit = { [weak self] in self?.edit(at: $0) }
         panel.onClose = { [weak self] in self?.hide() }
         // 창을 띄운 채 다른 앱을 쓰면 그 앱이 붙여넣을 곳이 된다
         NSWorkspace.shared.notificationCenter.addObserver(
@@ -76,8 +78,10 @@ final class PanelController {
         model.canPaste = Clipboard.canSendKeys
         model.selection = 0
         model.focusTick += 1
+        applySpaceBehavior(to: panel, prefs: prefs)
         if !hasUsableSavedFrame(panel.frame) { fitAndCenterOnActiveScreen() }
         panel.makeKeyAndOrderFront(nil)
+        moveCursorToEnd(in: panel)
         installKeyMonitor()
         watcher.start()
     }
@@ -85,11 +89,13 @@ final class PanelController {
     func focusInput() {
         model.focusTick += 1
         panel.makeKeyAndOrderFront(nil)
+        moveCursorToEnd(in: panel)
         installKeyMonitor()
         watcher.start()
     }
 
     func hide() {
+        model.editingID = nil
         generation += 1
         watcher.stop()
         onHide()
@@ -120,6 +126,7 @@ final class PanelController {
     }
 
     private func setTrashMode(_ on: Bool) {
+        model.editingID = nil
         model.showingTrash = on
         model.selection = 0
         if !on { model.focusTick += 1 } // 입력칸이 다시 생기므로 초점을 돌려준다
@@ -127,6 +134,26 @@ final class PanelController {
 
     private func pick(at index: Int) {
         model.showingTrash ? restore(at: index) : load(at: index)
+    }
+
+    /// 고른 의문의 질문을 그 자리에서 입력칸으로 바꾼다.
+    private func edit(at index: Int) {
+        guard !model.showingTrash, store.items.indices.contains(index) else { return NSSound.beep() }
+        let item = store.items[index]
+        if model.selection != index { moveSelection(to: index, count: store.items.count) }
+        model.editingID = item.id
+        model.editDraft = item.text
+        model.editFocusTick += 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            guard let self else { return }
+            moveCursorToEnd(in: self.panel)
+        }
+    }
+
+    private func finishEdit(save: Bool) {
+        if save, let id = model.editingID { store.update(id: id, text: model.editDraft) }
+        model.editingID = nil
+        model.focusTick += 1 // 위 입력칸으로 초점을 돌린다
     }
 
     /// 스택에서는 휴지통으로, 휴지통에서는 지우기. 둘 다 ⌘Z 로 되돌린다.
@@ -148,6 +175,12 @@ final class PanelController {
     /// 창을 닫은 뒤 원래 앱에 붙여넣는다.
     private func load(at index: Int) {
         guard !Clipboard.isBusy, store.items.indices.contains(index) else { return NSSound.beep() }
+        // 우리 창이 키를 쥐면 ⌘V 가 그 창으로 간다. 빼기 전에 막는다
+        if ownWindowWillTakeKeys() {
+            DiagLog.write("paste blocked: compose window open")
+            model.notice = "작성 창을 닫은 뒤 다시 고르세요. 의문은 그대로 남아 있습니다"
+            return NSSound.beep()
+        }
         if prefs.pasteOnlyIntoText, FocusInfo.shouldBlockPaste(FocusProbe.focused(in: previousApp)) {
             DiagLog.write("paste blocked: \(FocusProbe.focused(in: previousApp)?.summary ?? "nil") app=\(previousApp?.bundleIdentifier ?? "nil")")
             model.notice = "입력칸을 먼저 클릭하세요. 의문은 그대로 남아 있습니다"
@@ -189,6 +222,18 @@ final class PanelController {
         let draftEmpty = model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let key = Int(event.keyCode)
 
+        // 고치는 중에는 방향키와 지우기가 입력칸 몫이다
+        if model.editingID != nil {
+            switch key {
+            case kVK_Escape: finishEdit(save: false)
+            case kVK_Return where event.modifierFlags.contains(.shift):
+                (panel.firstResponder as? NSTextView)?.insertNewlineIgnoringFieldEditor(nil)
+            case kVK_Return, kVK_ANSI_KeypadEnter: finishEdit(save: true)
+            default: return false
+            }
+            return true
+        }
+
         if model.showingTrash {
             switch key {
             case kVK_Escape: if model.expanded { model.expanded = false } else { hide() }
@@ -212,6 +257,8 @@ final class PanelController {
             if model.expanded { model.expanded = false } else { hide() }
         case kVK_Tab:
             setTrashMode(true)
+        case kVK_ANSI_E where event.modifierFlags.contains(.command):
+            edit(at: model.selection)
         case kVK_RightArrow where draftEmpty:
             model.expanded = true
         case kVK_LeftArrow where draftEmpty:

@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
         panel.onHide = { [weak self] in self?.settingsWindow?.close() }
+        panel.ownWindowWillTakeKeys = { [weak self] in self?.compose.isVisible ?? false }
         settings.$shortcuts
             .combineLatest(settings.$disabled)
             .receive(on: RunLoop.main)
@@ -27,6 +28,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.registerHotKeys()
                 self?.rebuildMenu()
             }
+            .store(in: &bag)
+        prefs.$trashLimit
+            .sink { [weak self] in self?.store.trashLimit = $0 }
             .store(in: &bag)
         prefs.$opacity
             .sink { [weak self] in self?.panel.setOpacity($0) }
@@ -96,6 +100,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func popTop() {
+        // 작성 창이나 설정 창이 키를 쥐고 있으면 ⌘V 가 그 창으로 간다
+        if NSApp.keyWindow != nil {
+            DiagLog.write("pop blocked: HoldStack window has focus")
+            return NSSound.beep()
+        }
         let front = NSWorkspace.shared.frontmostApplication
         if prefs.pasteOnlyIntoText, FocusInfo.shouldBlockPaste(FocusProbe.focused(in: front)) {
             DiagLog.write("pop blocked: app=\(front?.bundleIdentifier ?? "nil")")

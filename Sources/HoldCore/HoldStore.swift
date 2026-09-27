@@ -32,11 +32,18 @@ enum UndoOp: Codable, Equatable {
     case removed([UndoMark], evicted: [HoldItem]?) // 스택 → 휴지통. evicted 는 그때 휴지통에서 밀려난 항목
     case restored(id: UUID, trashIndex: Int)    // 휴지통 → 스택
     case purged(item: HoldItem, trashIndex: Int) // 휴지통에서 지움. 되살리려고 항목을 들고 있다
+    case edited(id: UUID, previousText: String) // 질문을 고침
 }
 
 /// items[0] 이 스택의 맨 위다. 빠진 항목은 trash 에 최근 것부터 쌓인다.
 public final class HoldStore: ObservableObject {
-    public static let trashLimit = 10
+    public static let defaultTrashLimit = 10
+    public static let trashLimitRange = 5...50
+
+    /// 휴지통과 되돌리기 기록을 몇 개까지 둘지. 줄여도 바로 지우지 않고, 다음에 버릴 때부터 줄어든다.
+    public var trashLimit: Int = HoldStore.defaultTrashLimit {
+        didSet { trashLimit = min(max(trashLimit, Self.trashLimitRange.lowerBound), Self.trashLimitRange.upperBound) }
+    }
 
     @Published public private(set) var items: [HoldItem] = []
     @Published public private(set) var trash: [HoldItem] = []
@@ -121,6 +128,10 @@ public final class HoldStore: ObservableObject {
             item.removedAt = Date()
             trash.insert(item, at: min(trashIndex, trash.count))
             return true
+        case .edited(let id, let previousText):
+            guard let at = items.firstIndex(where: { $0.id == id }) else { return false }
+            items[at].text = previousText
+            return true
         case .purged(let item, let trashIndex):
             guard !trash.contains(where: { $0.id == item.id }) else { return false }
             trash.insert(item, at: min(trashIndex, trash.count))
@@ -129,6 +140,19 @@ public final class HoldStore: ObservableObject {
     }
 
     public var undoSteps: Int { undoHistory.count }
+
+    /// 질문만 고친다. 문장은 원문 인용이라 그대로 둔다. 바뀐 게 없거나 둘 다 비게 되면 false.
+    @discardableResult
+    public func update(id: UUID, text: String) -> Bool {
+        guard let at = items.firstIndex(where: { $0.id == id }) else { return false }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let old = items[at].text
+        guard trimmed != old, !trimmed.isEmpty || items[at].quote != nil else { return false }
+        items[at].text = trimmed
+        record(.edited(id: id, previousText: old))
+        save()
+        return true
+    }
 
     /// 비운 것은 10개를 넘어도 전부 휴지통에 남긴다. 다음에 빠지는 항목부터 다시 10개로 줄어든다.
     public func clear() {
@@ -169,23 +193,23 @@ public final class HoldStore: ObservableObject {
             return item
         }
         let combined = stamped + trash
-        let keep = max(Self.trashLimit, keepAtLeast)
+        let keep = max(trashLimit, keepAtLeast)
         trash = Array(combined.prefix(keep))
         return Array(combined.dropFirst(keep))
     }
 
     private func record(_ op: UndoOp) {
         undoHistory.append(op)
-        while undoHistory.count > Self.trashLimit { undoHistory.removeFirst() }
+        while undoHistory.count > trashLimit { undoHistory.removeFirst() }
     }
 
     /// 예전 형식(스택에서 뺀 기록만 있던 [[UndoMark]])도 읽는다.
     private static func loadUndoHistory(_ url: URL?) -> [UndoOp] {
         if let url, let data = try? Data(contentsOf: url),
            let old = try? JSONDecoder().decode([[UndoMark]].self, from: data) {
-            return Array(old.map { UndoOp.removed($0, evicted: nil) }.suffix(trashLimit))
+            return Array(old.map { UndoOp.removed($0, evicted: nil) }.suffix(Self.trashLimitRange.upperBound))
         }
-        return Array((load(url) as [UndoOp]).suffix(trashLimit))
+        return Array((load(url) as [UndoOp]).suffix(Self.trashLimitRange.upperBound))
     }
 
     private static func load<T: Decodable>(_ url: URL?) -> [T] {

@@ -12,6 +12,10 @@ final class PanelModel: ObservableObject {
     var onPick: (Int) -> Void = { _ in }
     var onTab: (Bool) -> Void = { _ in }   // true = 휴지통
     var onDelete: (Int) -> Void = { _ in }
+    var onEdit: (Int) -> Void = { _ in }
+    @Published var editingID: UUID?  // 질문을 고치는 중인 항목
+    @Published var editDraft = ""
+    @Published var editFocusTick = 0
 }
 
 struct HoldView: View {
@@ -19,14 +23,17 @@ struct HoldView: View {
     @ObservedObject var model: PanelModel
     @ObservedObject var prefs: Preferences
     @FocusState private var inputFocused: Bool
+    @FocusState private var editFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             if model.showingTrash {
-                Text("휴지통 · 최근 \(HoldStore.trashLimit)개까지 보관")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(14)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("휴지통").font(.headline)
+                    Text("최근 \(prefs.trashLimit)개까지 보관").font(.caption).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
             } else {
                 TextField(placeholder, text: $model.draft)
                     .textFieldStyle(.plain)
@@ -56,6 +63,7 @@ struct HoldView: View {
         .background(.regularMaterial)
         .onAppear { inputFocused = true }
         .onChange(of: model.focusTick) { inputFocused = true }
+        .onChange(of: model.editFocusTick) { editFocused = true }
     }
 
     private var shownItems: [HoldItem] { model.showingTrash ? store.trash : store.items }
@@ -79,7 +87,9 @@ struct HoldView: View {
                     QuoteLine(text: quote, size: prefs.quoteFontSize + 1, lineLimit: nil)
                         .textSelection(.enabled)
                 }
-                if !item.text.isEmpty {
+                if model.editingID == item.id {
+                    editor(size: prefs.questionFontSize + 3, onAccent: false)
+                } else if !item.text.isEmpty {
                     Text(item.text)
                         .font(.system(size: prefs.questionFontSize + 3))
                         .fixedSize(horizontal: false, vertical: true)
@@ -90,6 +100,24 @@ struct HoldView: View {
             .padding(16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// 고치는 중인 질문. 테두리와 안내 줄로 보통 상태와 구분한다.
+    private func editor(size: Double, onAccent: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Label("질문 고치는 중", systemImage: "pencil")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(onAccent ? Color.white : Color.accentColor)
+            TextField("질문", text: $model.editDraft, axis: .vertical)
+                .textFieldStyle(.plain)
+                .font(.system(size: size))
+                .foregroundStyle(Color.primary)
+                .lineLimit(1...8)
+                .padding(8)
+                .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(onAccent ? Color.white : Color.accentColor, lineWidth: 1.5))
+                .focused($editFocused)
+        }
     }
 
     private var tabs: some View {
@@ -125,11 +153,12 @@ struct HoldView: View {
                 Text("손쉬운 사용 권한이 없어 불러온 내용은 클립보드에만 들어갑니다. ⌘V 로 붙여넣으세요")
                     .foregroundStyle(.orange)
             }
-            Text(detailItem != nil
+            Text(model.editingID != nil ? "⏎ 저장   ⇧⏎ 줄바꿈   esc 취소"
+                 : detailItem != nil
                  ? (model.showingTrash ? "↑↓ 앞뒤 항목   ← 목록으로   ⏎ 스택으로 되돌리기   ⌫ 지우기"
-                                       : "↑↓ 앞뒤 항목   ← 목록으로   ⏎ 불러오기   ⌫ 휴지통으로")
+                                       : "↑↓ 앞뒤 항목   ← 목록으로   ⏎ 불러오기   ⌘E 고치기   ⌫ 휴지통으로")
                  : model.showingTrash ? "↑↓ 이동   → 펼치기   ⏎ 스택으로 되돌리기   ⌫ 지우기   ⌘Z 되돌리기   esc 닫기"
-                 : "↑↓ 이동   → 펼치기   ⏎ 불러오기   ⌫ 휴지통으로   ⌘Z 되돌리기   esc 닫기")
+                 : "↑↓ 이동   → 펼치기   ⏎ 불러오기   ⌘E 고치기   ⌫ 휴지통으로   ⌘Z 되돌리기")
                 .foregroundStyle(.secondary)
         }
         .font(.caption)
@@ -146,6 +175,9 @@ struct HoldView: View {
                             expanded: index == model.selection && model.expanded,
                             questionSize: prefs.questionFontSize, quoteSize: prefs.quoteFontSize,
                             deleteHelp: model.showingTrash ? "지우기" : "휴지통으로",
+                            onEdit: model.showingTrash ? nil : { model.onEdit(index) },
+                            editor: model.editingID == item.id
+                                ? AnyView(editor(size: prefs.questionFontSize, onAccent: index == model.selection)) : nil,
                             onDelete: { model.onDelete(index) })
                             .id(item.id)
                             .contentShape(Rectangle())
@@ -171,6 +203,8 @@ private struct Row: View {
     let questionSize: Double
     let quoteSize: Double
     let deleteHelp: String
+    let onEdit: (() -> Void)?
+    let editor: AnyView?  // 고치는 중이면 질문 자리에 들어간다
     let onDelete: () -> Void
     @StateObject private var hover = HoverState()
 
@@ -183,7 +217,9 @@ private struct Row: View {
                 if let quote = item.quote {
                     QuoteLine(text: quote, size: quoteSize, lineLimit: expanded ? nil : 1, onAccent: selected)
                 }
-                if !item.text.isEmpty {
+                if let editor {
+                    editor
+                } else if !item.text.isEmpty {
                     Text(item.text)
                         .font(.system(size: questionSize))
                         .lineLimit(expanded ? nil : 2)
@@ -191,7 +227,15 @@ private struct Row: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            if hover.on {
+            if hover.on && editor == nil {
+                if let onEdit {
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil.circle.fill")
+                            .foregroundStyle(selected ? .white.opacity(0.85) : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("고치기 (⌘E)")
+                }
                 Button(action: onDelete) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(selected ? .white.opacity(0.85) : .secondary)

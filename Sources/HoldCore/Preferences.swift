@@ -33,6 +33,7 @@ public final class Preferences: ObservableObject {
         static let questionFontSize = "questionFontSize"
         static let quoteFontSize = "quoteFontSize"
         static let pasteOnlyIntoText = "pasteOnlyIntoText"
+        static let trashLimit = "trashLimit"
     }
     private let defaults: UserDefaults
 
@@ -63,6 +64,9 @@ public final class Preferences: ObservableObject {
         didSet { defaults.set(hideOnSpaceChange, forKey: Key.hideOnSpaceChange) }
     }
 
+    /// 데스크탑을 옮기면 닫을 창은 처음부터 따라오지 않게 한다. 따라왔다가 닫히면 깜빡인다.
+    public var followsAcrossDesktops: Bool { !hideOnSpaceChange }
+
     /// 창이 내려갈 이유가 생겼을 때 설정에 따라 내릴지 정한다.
     public func shouldHide(for reason: FocusLossReason) -> Bool {
         switch reason {
@@ -74,6 +78,15 @@ public final class Preferences: ObservableObject {
     /// 초점이 입력칸이 아니면 붙여넣지 않고 스택에 남긴다.
     @Published public var pasteOnlyIntoText: Bool {
         didSet { defaults.set(pasteOnlyIntoText, forKey: Key.pasteOnlyIntoText) }
+    }
+
+    /// 휴지통과 되돌리기 기록 개수.
+    @Published public var trashLimit: Int {
+        didSet {
+            let clamped = min(max(trashLimit, HoldStore.trashLimitRange.lowerBound), HoldStore.trashLimitRange.upperBound)
+            if clamped != trashLimit { trashLimit = clamped }
+            defaults.set(trashLimit, forKey: Key.trashLimit)
+        }
     }
 
     /// 나의 질문 글자 크기(pt).
@@ -105,10 +118,12 @@ public final class Preferences: ObservableObject {
         showCountInMenuBar = defaults.object(forKey: Key.showCount) as? Bool ?? true
         hideOnFocusLoss = defaults.object(forKey: Key.hideOnFocusLoss) as? Bool ?? true
         hideOnSpaceChange = defaults.object(forKey: Key.hideOnSpaceChange) as? Bool ?? true
+        trashLimit = min(max(defaults.object(forKey: Key.trashLimit) as? Int ?? HoldStore.defaultTrashLimit,
+                             HoldStore.trashLimitRange.lowerBound), HoldStore.trashLimitRange.upperBound)
         pasteOnlyIntoText = defaults.object(forKey: Key.pasteOnlyIntoText) as? Bool ?? true
         questionFontSize = Self.clampFont(defaults.object(forKey: Key.questionFontSize) as? Double ?? 13)
         quoteFontSize = Self.clampFont(defaults.object(forKey: Key.quoteFontSize) as? Double ?? 12)
-        expandStyle = defaults.string(forKey: Key.expandStyle).flatMap(ExpandStyle.init) ?? .inline
+        expandStyle = defaults.string(forKey: Key.expandStyle).flatMap(ExpandStyle.init) ?? .detail
     }
 
     private static func clampFont(_ value: Double) -> Double {

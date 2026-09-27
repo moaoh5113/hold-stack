@@ -124,7 +124,7 @@ do {
     let s = HoldStore(fileURL: nil)
     (1...12).forEach { s.push("\($0)") }
     (1...12).forEach { _ in s.pop() }
-    check(s.trash.count == HoldStore.trashLimit && s.trash.first?.text == "1" && s.trash.last?.text == "10", "휴지통은 최근 10개만")
+    check(s.trash.count == HoldStore.defaultTrashLimit && s.trash.first?.text == "1" && s.trash.last?.text == "10", "휴지통은 최근 10개만")
 }
 do {
     let s = HoldStore(fileURL: nil)
@@ -151,6 +151,9 @@ do {
     check(p.closeAfterLoad && p.showCountInMenuBar && p.hideOnFocusLoss && p.hideOnSpaceChange, "부가 기능 기본값은 켜짐")
     p.hideOnSpaceChange = false
     check(p.shouldHide(for: .otherApp) && !p.shouldHide(for: .spaceChange), "닫는 이유마다 설정을 따로 본다")
+    check(p.followsAcrossDesktops, "데스크탑 전환에 닫지 않으면 창이 따라온다")
+    p.hideOnSpaceChange = true
+    check(!p.followsAcrossDesktops, "데스크탑 전환에 닫으면 창이 따라오지 않는다")
     p.closeAfterLoad = false
     p.showCountInMenuBar = false
     let again = Preferences(defaults: d)
@@ -163,7 +166,7 @@ do {
     s.clear()
     check(s.trash.count == 15, "전체 비우기는 10개를 넘어도 전부 휴지통에")
     s.push("x"); s.pop()
-    check(s.trash.count == HoldStore.trashLimit && s.trash.first?.text == "x", "다음 이동부터 다시 10개로")
+    check(s.trash.count == HoldStore.defaultTrashLimit && s.trash.first?.text == "x", "다음 이동부터 다시 10개로")
 }
 do {
     let s = HoldStore(fileURL: nil)
@@ -208,7 +211,7 @@ do {
     (1...12).forEach { _ in s.pop() }
     var n = 0
     while s.undo() { n += 1 }
-    check(n == HoldStore.trashLimit && s.items.count == HoldStore.trashLimit, "undo 는 최대 10단계")
+    check(n == HoldStore.defaultTrashLimit && s.items.count == HoldStore.defaultTrashLimit, "undo 는 최대 10단계")
 }
 
 do {
@@ -239,11 +242,11 @@ do {
     let suite = "holdstack-check-\(UUID().uuidString)"
     let d = UserDefaults(suiteName: suite)!
     defer { d.removePersistentDomain(forName: suite) }
-    check(Preferences(defaults: d).expandStyle == .inline, "펼치기 기본값은 그 자리에서")
-    Preferences(defaults: d).expandStyle = .detail
-    check(Preferences(defaults: d).expandStyle == .detail, "펼치기 방식 저장")
+    check(Preferences(defaults: d).expandStyle == .detail, "펼치기 기본값은 내용만 크게 보기")
+    Preferences(defaults: d).expandStyle = .inline
+    check(Preferences(defaults: d).expandStyle == .inline, "펼치기 방식 저장")
     d.set("weird", forKey: "expandStyle")
-    check(Preferences(defaults: d).expandStyle == .inline, "모르는 값이면 기본값")
+    check(Preferences(defaults: d).expandStyle == .detail, "모르는 값이면 기본값")
 }
 
 do {
@@ -317,6 +320,46 @@ do {
     let d = UserDefaults(suiteName: suite)!
     defer { d.removePersistentDomain(forName: suite) }
     check(Preferences(defaults: d).pasteOnlyIntoText, "입력칸 확인은 기본으로 켜짐")
+}
+
+do {
+    let s = HoldStore(fileURL: nil)
+    s.push("처음 질문", quote: "원문")
+    s.push("위")
+    let id = s.items[1].id
+    check(s.update(id: id, text: "  고친 질문 ") && s.items[1].text == "고친 질문" && s.items[1].quote == "원문", "질문만 고치고 자리와 문장은 그대로")
+    check(!s.update(id: id, text: "고친 질문"), "바뀐 게 없으면 기록하지 않는다")
+    check(s.update(id: id, text: "") && s.items[1].pasteText == "\"원문\"", "문장이 있으면 질문을 비울 수 있다")
+    check(!s.update(id: s.items[0].id, text: " "), "문장 없는 항목은 질문을 비울 수 없다")
+    check(s.undo() && s.items[1].text == "고친 질문" && s.undo() && s.items[1].text == "처음 질문", "고친 것도 한 단계씩 되돌린다")
+}
+
+do {
+    let s = HoldStore(fileURL: nil)
+    s.trashLimit = 5
+    (1...7).forEach { s.push("\($0)") }
+    (1...7).forEach { _ in s.pop() }
+    check(s.trash.count == 5, "휴지통 개수 설정을 따른다")
+    var n = 0
+    while s.undo() { n += 1 }
+    check(n == 5, "되돌리기 기록도 같은 개수")
+    s.trashLimit = 1
+    check(s.trashLimit == HoldStore.trashLimitRange.lowerBound, "휴지통 개수 하한")
+    s.trashLimit = 100
+    check(s.trashLimit == HoldStore.trashLimitRange.upperBound, "휴지통 개수는 범위 안으로")
+    let t = HoldStore(fileURL: nil)
+    (1...10).forEach { t.push("\($0)") }
+    (1...10).forEach { _ in t.pop() }
+    t.trashLimit = 5
+    check(t.trash.count == 10, "개수를 줄여도 바로 지우지 않는다")
+    t.push("x"); t.pop()
+    check(t.trash.count == 5, "다음에 버릴 때 줄어든다")
+    let suite = "holdstack-check-\(UUID().uuidString)"
+    let d = UserDefaults(suiteName: suite)!
+    defer { d.removePersistentDomain(forName: suite) }
+    check(Preferences(defaults: d).trashLimit == 10, "휴지통 개수 기본값 10")
+    Preferences(defaults: d).trashLimit = 20
+    check(Preferences(defaults: d).trashLimit == 20, "휴지통 개수 저장")
 }
 
 exit(failures == 0 ? 0 : 1)
