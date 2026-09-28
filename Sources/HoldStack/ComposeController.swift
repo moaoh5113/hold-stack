@@ -82,7 +82,7 @@ final class ComposeController {
         panel.setContentSize(hosting.fittingSize)
         if UserDefaults.standard.string(forKey: "NSWindow Frame \(Self.frameName)") == nil
             || !NSScreen.screens.contains(where: { $0.visibleFrame.contains(panel.frame) }) {
-            panel.center()
+            placeOnActiveScreen(panel, frameName: Self.frameName, force: true)
         } else {
             panel.setFrameTopLeftPoint(NSPoint(x: panel.frame.minX, y: top)) // 문장 길이가 바뀌어도 윗변 고정
         }
@@ -90,6 +90,7 @@ final class ComposeController {
 
     func focus() {
         applySpaceBehavior(to: panel, prefs: prefs)
+        placeOnActiveScreen(panel, frameName: Self.frameName)
         model.focusTick += 1
         panel.makeKeyAndOrderFront(nil)
         moveCursorToEnd(in: panel)

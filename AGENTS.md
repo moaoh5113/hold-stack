@@ -34,6 +34,8 @@ macOS 메뉴 막대 앱. 질문을 스택에 보관하고 전역 단축키로 �
 | `Sources/HoldCore/Age.swift` | 목록의 경과 시간 문구 (분 단위) |
 | `Sources/HoldCore/FocusInfo.swift` | 초점 요소가 입력칸인지 가리는 규칙. 실제 앱에서 읽은 값으로 검사한다 |
 | `Sources/HoldStack/FocusProbe.swift` | 붙여넣을 앱의 초점 요소 종류를 AX 로 읽는다 |
+| `Sources/HoldCore/ScreenFit.swift` | 창을 화면 안 어디에 놓을지 계산. 가운데 놓기, 다른 화면으로 비율 옮기기 |
+| `Sources/HoldStack/ActiveScreen.swift` | 초점이 가 있는 화면 고르기(AX 초점 창 → 마우스 → `NSScreen.main`)와 창 옮기기 |
 | `Sources/HoldStack/DiagLog.swift` | `~/Library/Logs/HoldStack.log`. 권한과 붙여넣기 대상만 적는다 |
 | `Sources/HoldStack/HoldView.swift` | 목록 창 SwiftUI 뷰 |
 | `Sources/HoldStack/SettingsView.swift` | 설정 창, 단축키 녹화, 투명도 |
@@ -55,6 +57,8 @@ macOS 메뉴 막대 앱. 질문을 스택에 보관하고 전역 단축키로 �
 | 목록 창 입력칸은 한 줄, 작성 창 입력칸은 여러 줄(`⇧⏎` 줄바꿈) | 목록 창에서는 ⏎ 가 목록 동작이다. 작성 창은 줄이 늘면 `fitToContent` 로 창도 늘린다 |
 | 초점을 줄 때 `moveCursorToEnd` | macOS 는 초점이 가면 글 전체를 선택해서, 살려 둔 초안이 다음 글자에 통째로 지워진다 |
 | 패널 위치는 `setFrameAutosaveName("HoldStackPanel")` 이 저장한다 | 직접 저장 코드를 따로 두지 않는다 |
+| 창을 띄우거나 초점을 줄 때마다 `placeOnActiveScreen` 을 거친다 | 저장된 자리만 믿으면 모니터가 여럿일 때 지난번 모니터에 계속 뜬다. 자리 저장은 그대로 두고 화면만 옮긴다 |
+| AX 로 읽은 좌표는 y 를 뒤집어 쓴다 | AX 는 왼쪽 위가 원점이고 아래로 갈수록 y 가 크다. Cocoa 는 왼쪽 아래가 원점이라 안 뒤집으면 위아래로 놓인 모니터를 반대로 고른다 |
 | `main.swift` 의 숨은 메인 메뉴를 지우지 않는다 | `.accessory` 앱은 이게 없으면 ⌘, 와 입력칸의 ⌘C ⌘V ⌘A 가 안 먹는다 |
 | 작성 창이 떠 있을 때 hold 단축키는 포커스만 준다 | 다시 열면 쓰던 질문과 문장이 지워진다 |
 | 창을 초점 잃음(`didResignKey`)으로 닫지 않는다. `FocusLossWatcher` 를 쓴다 | 데스크탑 전환도 초점을 뺏어서 이유를 구분할 수 없다. 설정이 이유별로 나뉜다 |
