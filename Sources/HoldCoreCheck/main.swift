@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import HoldCore
 
@@ -379,6 +380,34 @@ do {
     Preferences(defaults: d).language = .en
     check(Preferences(defaults: d).language == .en && L10n.language == .en, "언어 설정 저장과 즉시 반영")
     L10n.language = .ko
+}
+
+do {
+    // 내장 디스플레이 왼쪽, 그 오른쪽에 붙인 큰 외부 모니터
+    let small = CGRect(x: 0, y: 0, width: 1728, height: 1080)
+    let big = CGRect(x: 1728, y: 0, width: 3008, height: 1692)
+    let size = CGSize(width: 560, height: 400)
+    func at(_ x: CGFloat, _ y: CGFloat) -> CGRect { CGRect(origin: CGPoint(x: x, y: y), size: size) }
+
+    let topLeft = at(small.minX, small.maxY - size.height)
+    check(ScreenFit.carried(topLeft, from: small, to: big) == at(big.minX, big.maxY - size.height),
+          "왼쪽 위 구석은 옮긴 화면에서도 왼쪽 위 구석")
+
+    let middle = at(small.midX - size.width / 2, small.midY - size.height / 2)
+    check(ScreenFit.carried(middle, from: small, to: big) == at(big.midX - size.width / 2, big.midY - size.height / 2),
+          "가운데는 옮긴 화면에서도 가운데")
+
+    let bottomRight = at(small.maxX - size.width, small.minY)
+    check(ScreenFit.carried(bottomRight, from: small, to: big) == at(big.maxX - size.width, big.minY),
+          "오른쪽 아래 구석은 옮긴 화면에서도 오른쪽 아래 구석")
+
+    let huge = CGRect(x: big.minX, y: big.minY, width: 2000, height: 1600)
+    let shrunk = ScreenFit.carried(huge, from: big, to: small)
+    check(small.contains(shrunk), "화면보다 큰 창은 줄여서 화면 안에 넣는다")
+
+    let centered = ScreenFit.centered(at(0, 0), in: big)
+    check(big.contains(centered) && centered.midX == big.midX && centered.midY > big.midY,
+          "가운데 놓기는 가로 한가운데, 세로는 조금 위")
 }
 
 exit(failures == 0 ? 0 : 1)

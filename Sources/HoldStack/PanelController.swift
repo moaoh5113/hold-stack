@@ -81,7 +81,7 @@ final class PanelController {
         model.selection = 0
         model.focusTick += 1
         applySpaceBehavior(to: panel, prefs: prefs)
-        if !hasUsableSavedFrame(panel.frame) { fitAndCenterOnActiveScreen() }
+        placeOnActiveScreen(panel, frameName: Self.frameName)
         panel.makeKeyAndOrderFront(nil)
         moveCursorToEnd(in: panel)
         installKeyMonitor()
@@ -90,6 +90,7 @@ final class PanelController {
 
     func focusInput() {
         model.focusTick += 1
+        placeOnActiveScreen(panel, frameName: Self.frameName)
         panel.makeKeyAndOrderFront(nil)
         moveCursorToEnd(in: panel)
         installKeyMonitor()
@@ -297,23 +298,6 @@ final class PanelController {
             return false
         }
         return true
-    }
-
-    /// 저장된 자리가 있고, 창이 한 화면 안에 통째로 들어가 있어야 true.
-    private func hasUsableSavedFrame(_ frame: NSRect) -> Bool {
-        UserDefaults.standard.string(forKey: "NSWindow Frame \(Self.frameName)") != nil
-            && NSScreen.screens.contains { $0.visibleFrame.contains(frame) }
-    }
-
-    /// 마우스가 있는 화면 가운데로 옮기고, 화면보다 크면 줄인다.
-    private func fitAndCenterOnActiveScreen() {
-        let mouse = NSEvent.mouseLocation
-        let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
-        guard let visible = screen?.visibleFrame else { return }
-        let width = min(panel.frame.width, visible.width - 40)
-        let height = min(panel.frame.height, visible.height - 40)
-        let y = min(visible.midY - height / 2 + visible.height / 6, visible.maxY - height)
-        panel.setFrame(NSRect(x: visible.midX - width / 2, y: y, width: width, height: height), display: true)
     }
 
     func setOpacity(_ value: Double) { panel.alphaValue = CGFloat(value) }
