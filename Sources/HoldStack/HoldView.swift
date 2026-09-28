@@ -80,7 +80,7 @@ struct HoldView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text("\(model.selection + 1) / \(shownItems.count)")
+                    Text("\(shownItems.count - model.selection) / \(shownItems.count)")
                         .font(.system(.caption, design: .monospaced))
                     Spacer()
                     Text(Age.text(since: item.removedAt ?? item.createdAt)).font(.caption)
@@ -174,7 +174,7 @@ struct HoldView: View {
             ScrollView {
                 LazyVStack(spacing: 2) {
                     ForEach(Array(shownItems.enumerated()), id: \.element.id) { index, item in
-                        Row(item: item, index: index, selected: index == model.selection,
+                        Row(item: item, number: shownItems.count - index, selected: index == model.selection,
                             expanded: index == model.selection && model.expanded,
                             questionSize: prefs.questionFontSize, quoteSize: prefs.quoteFontSize,
                             deleteHelp: model.showingTrash ? L("지우기") : L("휴지통으로"),
@@ -200,7 +200,7 @@ struct HoldView: View {
 /// 목록 한 줄. 마우스를 올리면 오른쪽에 ✕ 가 나온다.
 private struct Row: View {
     let item: HoldItem
-    let index: Int
+    let number: Int
     let selected: Bool
     let expanded: Bool
     let questionSize: Double
@@ -213,7 +213,7 @@ private struct Row: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("\(index + 1)")
+            Text("\(number)")
                 .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(selected ? .white.opacity(0.8) : .secondary)
             VStack(alignment: .leading, spacing: 3) {
