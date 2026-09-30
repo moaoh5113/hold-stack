@@ -27,6 +27,7 @@ macOS 메뉴 막대 앱. 질문을 스택에 보관하고 전역 단축키로 �
 | `Sources/HoldStack/AppDelegate.swift` | 메뉴 막대, 단축키 등록·재등록, 설정 창 |
 | `Sources/HoldStack/HotKeyCenter.swift` | Carbon `RegisterEventHotKey` 래퍼 |
 | `Sources/HoldStack/Clipboard.swift` | 합성 ⌘C/⌘V, 클립보드 복원 |
+| `Sources/HoldStack/InputSource.swift` | 키를 보내는 동안만 영문 자판으로 바꾸고 되돌린다 |
 | `Sources/HoldStack/PanelController.swift` | 목록 창. 스택/휴지통 모드 키 처리, 붙여넣을 앱 추적, 위치와 크기 자동 저장 |
 | `Sources/HoldStack/ComposeController.swift` | ⌃⇧H 작성 창과 그 뷰. 목록 창과 별개 |
 | `Sources/HoldStack/LoginItem.swift` | 로그인 시 자동 실행 (`SMAppService`) |
@@ -51,6 +52,7 @@ macOS 메뉴 막대 앱. 질문을 스택에 보관하고 전역 단축키로 �
 | 패널 키 처리에서 `hasMarkedText()` 먼저 본다 | 한글 조합 중 Enter 를 가로채면 마지막 글자가 사라진다 |
 | 단축키 녹화 중에는 `HotKeyCenter.unregisterAll()` | 전역 단축키가 먼저 키를 먹어서 설정 창에 안 온다 |
 | 녹화를 끝내는 경로는 키 입력, 앱 비활성화, 창 닫기 셋 다 | 하나라도 빠지면 전역 단축키가 꺼진 채 남는다 |
+| 합성 ⌘C/⌘V 는 `InputSource.useASCII()` 로 감싸고, 실제로 영문이 된 뒤에 보낸다 | 조합 입력기가 켜져 있으면 받는 쪽에 `c`, `v` 가 아니라 `ㅊ`, `ㅍ` 로 번역되어 닿는다. kitty 키보드 프로토콜을 쓰는 터미널(herdr 등)에서 복사가 통째로 실패한다. 자판 전환은 즉시가 아니라서 기다려야 한다 |
 | 클립보드는 `snapshot()` 으로 모든 형식을 저장한다 | 문자열만 저장하면 복사해 둔 이미지와 파일이 사라진다 |
 | 스택에서 빼기 전에 `Clipboard.isBusy` 를 본다 | 복원 전 두 번째 붙여넣기가 앞 항목을 "원래 클립보드"로 저장한다 |
 | `HoldItem` 에 필드를 더할 때는 옵셔널로 | 옛 `stack.json` 에 없는 키라서, 필수 필드면 저장된 스택 전체를 못 읽는다 |

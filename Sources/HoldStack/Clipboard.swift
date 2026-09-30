@@ -30,19 +30,23 @@ enum Clipboard {
         let pb = NSPasteboard.general
         let saved = snapshot()
         let before = pb.changeCount
-        sendKey(kVK_ANSI_C)
-        poll(until: { pb.changeCount != before }, timeout: 0.5) { changed in
-            let text = changed ? pb.string(forType: .string) : nil
-            if changed {
-                restore(saved)
-            } else {
-                // 늦게 도착한 복사가 클립보드를 덮어쓰는 경우
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    if pb.changeCount != before { restore(saved) }
+        let restoreInput = InputSource.useASCII()
+        poll(until: { InputSource.isASCIICapable }, timeout: 0.3) { _ in
+            sendKey(kVK_ANSI_C)
+            poll(until: { pb.changeCount != before }, timeout: 0.5) { changed in
+                restoreInput()
+                let text = changed ? pb.string(forType: .string) : nil
+                if changed {
+                    restore(saved)
+                } else {
+                    // 늦게 도착한 복사가 클립보드를 덮어쓰는 경우
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        if pb.changeCount != before { restore(saved) }
+                    }
                 }
+                isBusy = false
+                completion(text)
             }
-            isBusy = false
-            completion(text)
         }
     }
 
@@ -67,10 +71,14 @@ enum Clipboard {
             let focus = FocusProbe.focused(in: target ?? NSWorkspace.shared.frontmostApplication)
             DiagLog.write("paste: send cmd+v frontReady=\(ok) front=\(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil") focus: \(focus?.summary ?? "unreadable")")
             let ours = pb.changeCount
-            sendKey(kVK_ANSI_V)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                if pb.changeCount == ours { restore(saved) } // 그 사이 사용자가 새로 복사했으면 두기
-                isBusy = false
+            let restoreInput = InputSource.useASCII()
+            poll(until: { InputSource.isASCIICapable }, timeout: 0.3) { _ in
+                sendKey(kVK_ANSI_V)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    restoreInput()
+                    if pb.changeCount == ours { restore(saved) } // 그 사이 사용자가 새로 복사했으면 두기
+                    isBusy = false
+                }
             }
         }
     }
