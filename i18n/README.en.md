@@ -67,7 +67,11 @@ your question
 
 HoldStack only pastes into text fields. If you last clicked a web page body or a Finder window, you hear a beep and the question stays in the list; click an input box and pick it again. To paste the top question without opening the list, press `⌃⇧P`.
 
-Press `→` to read a long question in full. The list steps aside and that question fills the window; `↑` `↓` move to the previous and next ones, and `←` brings the list back. You can also type a new question in the box at the top of the list window and press Enter to stack it.
+Press `→` to read a long question in full. The list steps aside and that question fills the window; `↑` `↓` move to the previous and next ones, and `←` brings the list back.
+
+`↑` `↓` wrap around at the ends: press `↑` on the top entry to jump to the bottom, and `↓` on the bottom entry to jump to the top. Type the number shown at the left of a row to go straight to it. The top entry is always `1`, so the newest question is one keystroke away. With more than ten held, press `1`, wait a moment, then `2` to reach number 12. The number you are typing appears briefly at the right end of the tab row, in place of "⇥ Switch", and ends there if no second digit arrives within a second.
+
+New questions are written in the compose window only. The list window is for picking what you already hold.
 
 ## Editing
 
@@ -93,7 +97,8 @@ Press `⌘/` in the list window to see all of these on one card.
 
 | Keys in the list window | What they do |
 |---|---|
-| `↑` `↓` | Move between questions |
+| `↑` `↓` | Move between questions. Wraps around at the ends |
+| `0` ~ `9` | Jump straight to that number |
 | `→` `←` | Show the selected question in full, then go back to the list |
 | `⏎` | Paste the selected question. In the trash, put it back on the stack |
 | `⌘E` | Edit the selected question |
