@@ -410,4 +410,38 @@ do {
           "가운데 놓기는 가로 한가운데, 세로는 조금 위")
 }
 
+do {
+    check(ListNav.wrapped(0, by: -1, count: 5) == 4, "맨 위에서 위로 가면 맨 아래")
+    check(ListNav.wrapped(4, by: 1, count: 5) == 0, "맨 아래에서 아래로 가면 맨 위")
+    check(ListNav.wrapped(2, by: 1, count: 5) == 3, "가운데는 그냥 한 칸")
+    check(ListNav.wrapped(0, by: -1, count: 1) == 0, "한 개뿐이면 제자리")
+    check(ListNav.wrapped(0, by: 1, count: 0) == 0, "빈 목록은 0")
+}
+do {
+    check(ListNav.index(forNumber: 1, count: 3) == 0, "1번은 맨 위 항목")
+    check(ListNav.index(forNumber: 3, count: 3) == 2, "마지막 번호는 맨 아래 항목")
+    check(ListNav.index(forNumber: 4, count: 3) == nil, "없는 번호는 nil")
+    check(ListNav.index(forNumber: 0, count: 3) == nil, "0번은 없다")
+}
+do {
+    var j = NumberJump()
+    check(j.push(1, count: 10) == 0 && j.pending == 1, "10개 중 1을 누르면 맨 위로 가고 다음 자리를 기다린다")
+    check(j.push(0, count: 10) == 9 && j.pending == nil, "이어 누른 0은 10번")
+
+    j = NumberJump()
+    check(j.push(1, count: 5) == 0 && j.pending == nil, "5개뿐이면 10번대가 없어 바로 끝낸다")
+
+    j = NumberJump()
+    _ = j.push(1, count: 12)
+    check(j.push(5, count: 12) == 4 && j.pending == nil, "15번이 없으면 5번으로 다시 센다")
+
+    j = NumberJump()
+    check(j.push(0, count: 10) == nil && j.pending == nil, "0 으로 시작하면 갈 곳이 없다")
+
+    j = NumberJump()
+    _ = j.push(1, count: 10)
+    j.clear()
+    check(j.push(1, count: 10) == 0, "버퍼를 비우면 다시 1번부터")
+}
+
 exit(failures == 0 ? 0 : 1)

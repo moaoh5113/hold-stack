@@ -18,7 +18,8 @@ final class PanelController {
     private let panel: HoldPanel
     private var keyMonitor: Any?
     private var previousApp: NSRunningApplication? // 붙여넣을 곳
-    private var keepDraft = false // 다른 곳을 눌러 내렸으면 쓰던 질문을 살린다
+    private var jump = NumberJump() // 숫자 키로 번호 찾아가기
+    private var jumpReset: DispatchWorkItem?
     var onHide: () -> Void = {}
     /// 목록 창이 내려간 뒤 키 입력을 가져갈 우리 창(작성 창)이 떠 있으면 true.
     var ownWindowWillTakeKeys: () -> Bool = { false }
@@ -26,7 +27,6 @@ final class PanelController {
     var globalKeys: () -> [(String, String)] = { [] }
     private lazy var watcher = FocusLossWatcher { [weak self] reason in
         guard let self, self.prefs.shouldHide(for: reason), self.isVisible else { return }
-        self.keepDraft = !self.model.draft.isEmpty
         self.hide()
     }
     private var generation = 0 // 열고 닫을 때마다 올라간다. 늦게 도는 다시 띄우기를 막는다
@@ -74,25 +74,20 @@ final class PanelController {
         generation += 1
         let front = NSWorkspace.shared.frontmostApplication
         if front?.processIdentifier != ProcessInfo.processInfo.processIdentifier { previousApp = front }
-        if !keepDraft { model.draft = "" }
-        keepDraft = false
         model.showingTrash = false
         model.canPaste = Clipboard.canSendKeys
         model.selection = 0
-        model.focusTick += 1
+        resetJump()
         applySpaceBehavior(to: panel, prefs: prefs)
         placeOnActiveScreen(panel, frameName: Self.frameName)
         panel.makeKeyAndOrderFront(nil)
-        moveCursorToEnd(in: panel)
         installKeyMonitor()
         watcher.start()
     }
 
     func focusInput() {
-        model.focusTick += 1
         placeOnActiveScreen(panel, frameName: Self.frameName)
         panel.makeKeyAndOrderFront(nil)
-        moveCursorToEnd(in: panel)
         installKeyMonitor()
         watcher.start()
     }
@@ -100,6 +95,7 @@ final class PanelController {
     func hide() {
         model.editingID = nil
         model.showingKeys = false
+        resetJump()
         generation += 1
         watcher.stop()
         onHide()
@@ -121,6 +117,36 @@ final class PanelController {
         if keepDetail { model.expanded = true }
     }
 
+    /// 맨 위에서 ↑ 는 맨 아래로, 맨 아래에서 ↓ 는 맨 위로 돌아온다.
+    private func step(_ delta: Int, count: Int) {
+        resetJump()
+        moveSelection(to: ListNav.wrapped(model.selection, by: delta, count: count), count: count)
+    }
+
+    /// 숫자 키 하나. 없는 번호면 경고음만 낸다.
+    private func jumpTo(_ digit: Int) {
+        let count = model.showingTrash ? store.trash.count : store.items.count
+        guard let index = jump.push(digit, count: count) else {
+            resetJump()
+            return NSSound.beep()
+        }
+        moveSelection(to: index, count: count)
+        model.jumpText = jump.text
+        jumpReset?.cancel()
+        guard jump.pending != nil else { return } // 더 기다릴 자릿수가 없다
+        // 손을 떼면 다음 숫자는 새 번호로 센다
+        let work = DispatchWorkItem { [weak self] in self?.resetJump() }
+        jumpReset = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: work)
+    }
+
+    private func resetJump() {
+        jumpReset?.cancel()
+        jumpReset = nil
+        jump.clear()
+        model.jumpText = ""
+    }
+
     private func undo() {
         let ok = store.undo()
         DiagLog.write("undo ok=\(ok) remaining=\(store.undoSteps) trash=\(model.showingTrash)")
@@ -133,7 +159,7 @@ final class PanelController {
         model.editingID = nil
         model.showingTrash = on
         model.selection = 0
-        if !on { model.focusTick += 1 } // 입력칸이 다시 생기므로 초점을 돌려준다
+        resetJump()
     }
 
     private func pick(at index: Int) {
@@ -144,6 +170,7 @@ final class PanelController {
     private func edit(at index: Int) {
         guard !model.showingTrash, store.items.indices.contains(index) else { return NSSound.beep() }
         let item = store.items[index]
+        resetJump()
         if model.selection != index { moveSelection(to: index, count: store.items.count) }
         model.editingID = item.id
         model.editDraft = item.text
@@ -157,7 +184,7 @@ final class PanelController {
     private func finishEdit(save: Bool) {
         if save, let id = model.editingID { store.update(id: id, text: model.editDraft) }
         model.editingID = nil
-        model.focusTick += 1 // 위 입력칸으로 초점을 돌린다
+        panel.makeFirstResponder(nil) // 사라질 입력칸에 초점을 남기지 않는다
     }
 
     /// 스택에서는 휴지통으로, 휴지통에서는 지우기. 둘 다 ⌘Z 로 되돌린다.
@@ -223,8 +250,10 @@ final class PanelController {
         model.notice = nil
         let editor = panel.firstResponder as? NSTextView
         if editor?.hasMarkedText() == true { return false } // 한글 조합 중에는 IME 에 맡긴다
-        let draftEmpty = model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let key = Int(event.keyCode)
+        let plain = event.modifierFlags
+            .intersection(.deviceIndependentFlagsMask)
+            .isDisjoint(with: [.command, .option, .control])
 
         if key == kVK_ANSI_Slash && event.modifierFlags.contains(.command) {
             model.globalKeys = globalKeys()
@@ -248,20 +277,25 @@ final class PanelController {
             return true
         }
 
+        if let digit = Self.digits[key], plain {
+            jumpTo(digit)
+            return true
+        }
+
         if model.showingTrash {
             switch key {
             case kVK_Escape: if model.expanded { model.expanded = false } else { hide() }
             case kVK_Tab: setTrashMode(false)
             case kVK_RightArrow: model.expanded = true
             case kVK_LeftArrow: model.expanded = false
-            case kVK_UpArrow: moveSelection(to: model.selection - 1, count: store.trash.count)
-            case kVK_DownArrow: moveSelection(to: model.selection + 1, count: store.trash.count)
+            case kVK_UpArrow: step(-1, count: store.trash.count)
+            case kVK_DownArrow: step(1, count: store.trash.count)
             case kVK_Return, kVK_ANSI_KeypadEnter: restore(at: model.selection)
             case kVK_ANSI_Z where event.modifierFlags.contains(.command): undo()
             case kVK_Delete, kVK_ForwardDelete:
                 store.deleteFromTrash(at: model.selection)
                 model.selection = min(model.selection, max(store.trash.count - 1, 0))
-            default: return false
+            default: return plain // 입력칸이 없으므로 남은 보통 키는 삼킨다 (경고음 방지)
             }
             return true
         }
@@ -273,32 +307,35 @@ final class PanelController {
             setTrashMode(true)
         case kVK_ANSI_E where event.modifierFlags.contains(.command):
             edit(at: model.selection)
-        case kVK_RightArrow where draftEmpty:
+        case kVK_RightArrow:
             model.expanded = true
-        case kVK_LeftArrow where draftEmpty:
+        case kVK_LeftArrow:
             model.expanded = false
         case kVK_UpArrow:
-            moveSelection(to: model.selection - 1, count: store.items.count)
+            step(-1, count: store.items.count)
         case kVK_DownArrow:
-            moveSelection(to: model.selection + 1, count: store.items.count)
+            step(1, count: store.items.count)
         case kVK_Return, kVK_ANSI_KeypadEnter:
-            if draftEmpty {
-                load(at: model.selection)
-            } else {
-                store.push(model.draft)
-                model.draft = ""
-                model.selection = 0
-            }
-        case kVK_Delete where draftEmpty, kVK_ForwardDelete where draftEmpty:
+            load(at: model.selection)
+        case kVK_Delete, kVK_ForwardDelete:
             guard store.remove(at: model.selection) != nil else { return true }
             model.selection = min(model.selection, max(store.items.count - 1, 0))
-        case kVK_ANSI_Z where draftEmpty && event.modifierFlags.contains(.command):
+        case kVK_ANSI_Z where event.modifierFlags.contains(.command):
             undo()
         default:
-            return false
+            return plain // 입력칸이 없으므로 남은 보통 키는 삼킨다 (경고음 방지)
         }
         return true
     }
+
+    /// 자판 글자가 아니라 자리로 읽는다. 한글 입력기가 켜져 있어도 같은 자리가 같은 숫자다.
+    private static let digits: [Int: Int] = [
+        kVK_ANSI_0: 0, kVK_ANSI_1: 1, kVK_ANSI_2: 2, kVK_ANSI_3: 3, kVK_ANSI_4: 4,
+        kVK_ANSI_5: 5, kVK_ANSI_6: 6, kVK_ANSI_7: 7, kVK_ANSI_8: 8, kVK_ANSI_9: 9,
+        kVK_ANSI_Keypad0: 0, kVK_ANSI_Keypad1: 1, kVK_ANSI_Keypad2: 2, kVK_ANSI_Keypad3: 3,
+        kVK_ANSI_Keypad4: 4, kVK_ANSI_Keypad5: 5, kVK_ANSI_Keypad6: 6, kVK_ANSI_Keypad7: 7,
+        kVK_ANSI_Keypad8: 8, kVK_ANSI_Keypad9: 9,
+    ]
 
     func setOpacity(_ value: Double) { panel.alphaValue = CGFloat(value) }
 }

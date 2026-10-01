@@ -2,13 +2,12 @@ import HoldCore
 import SwiftUI
 
 final class PanelModel: ObservableObject {
-    @Published var draft = ""
     @Published var showingTrash = false
     @Published var notice: String?
     @Published var canPaste = true
     @Published var selection = 0 { didSet { expanded = false } }
     @Published var expanded = false
-    @Published var focusTick = 0
+    @Published var jumpText = "" // 누르는 중인 번호. 비어 있으면 안 보인다
     var onPick: (Int) -> Void = { _ in }
     var onTab: (Bool) -> Void = { _ in }   // true = 휴지통
     var onDelete: (Int) -> Void = { _ in }
@@ -24,26 +23,10 @@ struct HoldView: View {
     @ObservedObject var store: HoldStore
     @ObservedObject var model: PanelModel
     @ObservedObject var prefs: Preferences
-    @FocusState private var inputFocused: Bool
     @FocusState private var editFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            if model.showingTrash {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L("휴지통")).font(.headline)
-                    Text(L("최근 %d개까지 보관", prefs.trashLimit)).font(.caption).foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(14)
-            } else {
-                TextField(placeholder, text: $model.draft)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 16))
-                    .padding(14)
-                    .focused($inputFocused)
-            }
-
             tabs
 
             Divider()
@@ -64,8 +47,6 @@ struct HoldView: View {
         .overlay { if model.showingKeys { KeysCard(globalKeys: model.globalKeys) } }
         .frame(minWidth: 360, idealWidth: 560, maxWidth: .infinity, minHeight: 220, idealHeight: 400, maxHeight: .infinity)
         .background(.regularMaterial)
-        .onAppear { inputFocused = true }
-        .onChange(of: model.focusTick) { inputFocused = true }
         .onChange(of: model.editFocusTick) { editFocused = true }
     }
 
@@ -80,7 +61,7 @@ struct HoldView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text("\(shownItems.count - model.selection) / \(shownItems.count)")
+                    Text("\(model.selection + 1) / \(shownItems.count)")
                         .font(.system(.caption, design: .monospaced))
                     Spacer()
                     Text(Age.text(since: item.removedAt ?? item.createdAt)).font(.caption)
@@ -123,14 +104,27 @@ struct HoldView: View {
         }
     }
 
+    /// 숨긴 제목 줄이 위쪽 32pt 를 신호등 몫으로 비워 둔다. 그 아래 12pt 를 더 띄운다.
     private var tabs: some View {
         HStack(spacing: 16) {
             tab(L("스택 %d", store.items.count), on: !model.showingTrash) { model.onTab(false) }
             tab(L("휴지통 %d", store.trash.count), on: model.showingTrash) { model.onTab(true) }
-            Spacer()
-            Text(L("⇥ 전환")).font(.caption).foregroundStyle(.secondary)
+            Spacer(minLength: 16)
+            if model.showingTrash {
+                Text(L("최근 %d개까지 보관", prefs.trashLimit))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            // 번호를 누르는 동안만 그 자리를 번호가 쓴다. 따로 자리를 내면 줄이 흔들린다
+            if model.jumpText.isEmpty {
+                Text(L("⇥ 전환")).font(.caption).foregroundStyle(.secondary)
+            } else {
+                Text(model.jumpText)
+                    .font(.system(.caption, design: .monospaced).weight(.bold))
+                    .foregroundStyle(Color.accentColor)
+            }
         }
         .padding(.horizontal, 14)
+        .padding(.top, 12)
         .padding(.bottom, 8)
     }
 
@@ -146,8 +140,6 @@ struct HoldView: View {
             .onTapGesture(perform: action)
     }
 
-    private var placeholder: String { L("새 의문을 적고 Enter, 비워두면 목록을 고릅니다") } // 언어를 바꾸면 다시 읽는다
-
     private var footer: some View {
         VStack(spacing: 4) {
             if let notice = model.notice {
@@ -160,8 +152,8 @@ struct HoldView: View {
                  : detailItem != nil
                  ? (model.showingTrash ? L("↑↓ 앞뒤 항목   ← 목록으로   ⏎ 스택으로 되돌리기   ⌫ 지우기")
                                        : L("↑↓ 앞뒤 항목   ← 목록으로   ⏎ 불러오기   ⌘E 고치기   ⌫ 휴지통으로"))
-                 : model.showingTrash ? L("↑↓ 이동   → 펼치기   ⏎ 스택으로 되돌리기   ⌫ 지우기   ⌘Z 되돌리기")
-                 : L("↑↓ 이동   → 펼치기   ⏎ 불러오기   ⌘E 고치기   ⌫ 휴지통으로   ⌘Z 되돌리기"))
+                 : model.showingTrash ? L("↑↓ 이동   숫자 번호로   → 펼치기   ⏎ 스택으로 되돌리기   ⌫ 지우기   ⌘Z 되돌리기")
+                 : L("↑↓ 이동   숫자 번호로   → 펼치기   ⏎ 불러오기   ⌘E 고치기   ⌫ 휴지통으로   ⌘Z 되돌리기"))
                 .foregroundStyle(.secondary)
         }
         .font(.caption)
@@ -174,7 +166,7 @@ struct HoldView: View {
             ScrollView {
                 LazyVStack(spacing: 2) {
                     ForEach(Array(shownItems.enumerated()), id: \.element.id) { index, item in
-                        Row(item: item, number: shownItems.count - index, selected: index == model.selection,
+                        Row(item: item, number: index + 1, selected: index == model.selection,
                             expanded: index == model.selection && model.expanded,
                             questionSize: prefs.questionFontSize, quoteSize: prefs.quoteFontSize,
                             deleteHelp: model.showingTrash ? L("지우기") : L("휴지통으로"),
@@ -335,7 +327,8 @@ enum ShortcutGuide {
     static var listWindow: [(String, [(String, String)])] {
         [
             (L("목록"), [
-                ("↑ ↓", L("이동")), ("→ ←", L("크게 보기와 목록")), ("⏎", L("붙여넣기")),
+                ("↑ ↓", L("이동 (끝에서 반대쪽 끝으로)")), ("0-9", L("그 번호의 의문으로")),
+                ("→ ←", L("크게 보기와 목록")), ("⏎", L("붙여넣기")),
                 ("⌘E", L("질문 고치기")), ("⌫", L("휴지통으로")), ("⇥", L("스택과 휴지통 전환")),
                 ("⌘Z", L("되돌리기")), ("⌘/", L("단축키 보기")), ("⌘,", L("설정")), ("esc", L("닫기")),
             ]),

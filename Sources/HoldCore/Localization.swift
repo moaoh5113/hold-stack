@@ -45,7 +45,6 @@ public func L(_ ko: String, _ args: CVarArg...) -> String {
 extension L10n {
     static let english: [String: String] = [
         // 목록 창
-        "새 의문을 적고 Enter, 비워두면 목록을 고릅니다": "New question, or ⏎ to pick one",
         "스택 %d": "Stack %d",
         "휴지통 %d": "Trash %d",
         "휴지통": "Trash",
@@ -121,11 +120,12 @@ extension L10n {
         "복사, 붙여넣기 같은 편집 단축키는 쓸 수 없습니다": "Editing shortcuts like copy and paste can't be used",
         "「%@」에서 이미 쓰는 조합입니다": "Already used by \"%@\"",
         // 키 안내
-        "이동": "Move",
+        "이동 (끝에서 반대쪽 끝으로)": "Move (wraps around)",
+        "그 번호의 의문으로": "Jump to that number",
         "스택과 휴지통 전환": "Switch between stack and Trash",
         "닫기": "Close",
-        "↑↓ 이동   → 펼치기   ⏎ 불러오기   ⌘E 고치기   ⌫ 휴지통으로   ⌘Z 되돌리기": "↑↓ Move   → Expand   ⏎ Paste   ⌘E Edit   ⌫ Trash   ⌘Z Undo",
-        "↑↓ 이동   → 펼치기   ⏎ 스택으로 되돌리기   ⌫ 지우기   ⌘Z 되돌리기": "↑↓ Move   → Expand   ⏎ Restore   ⌫ Delete   ⌘Z Undo",
+        "↑↓ 이동   숫자 번호로   → 펼치기   ⏎ 불러오기   ⌘E 고치기   ⌫ 휴지통으로   ⌘Z 되돌리기": "↑↓ Move   0-9 Jump   → Expand   ⏎ Paste   ⌘E Edit   ⌫ Trash   ⌘Z Undo",
+        "↑↓ 이동   숫자 번호로   → 펼치기   ⏎ 스택으로 되돌리기   ⌫ 지우기   ⌘Z 되돌리기": "↑↓ Move   0-9 Jump   → Expand   ⏎ Restore   ⌫ Delete   ⌘Z Undo",
         "↑↓ 앞뒤 항목   ← 목록으로   ⏎ 불러오기   ⌘E 고치기   ⌫ 휴지통으로": "↑↓ Prev/Next   ← List   ⏎ Paste   ⌘E Edit   ⌫ Trash",
         "↑↓ 앞뒤 항목   ← 목록으로   ⏎ 스택으로 되돌리기   ⌫ 지우기": "↑↓ Prev/Next   ← List   ⏎ Restore   ⌫ Delete",
         "단축키": "Shortcuts",
